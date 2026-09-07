@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Study Planner & Exam Mastery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-name">AetherMind</span>
+                    <span class="brand-badge">AI Planner</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="dashboard">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-item" data-tab="schedule">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <span>Adaptive Schedule</span>
+                </button>
+                <button class="nav-item" data-tab="subjects">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                    <span>Subjects & Topics</span>
+                </button>
+                <button class="nav-item" data-tab="quiz">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44L2.04 15.5a2.5 2.5 0 0 1 0-3L7.04 8A2.5 2.5 0 0 1 9.5 2z"/><circle cx="12" cy="12" r="3"/><path d="M19 12h2"/><path d="M19 6h2"/><path d="M19 18h2"/></svg>
+                    <span>AI Quiz Arena</span>
+                </button>
+                <button class="nav-item" data-tab="analytics">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    <span>Progress & Analytics</span>
+                </button>
+                <button class="nav-item" data-tab="settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <span>Exam Details & Data</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="pomodoro-mini">
+                    <div class="pomo-header">
+                        <span class="pomo-title">Focus Timer</span>
+                        <span class="pomo-status" id="pomo-status-label">Ready</span>
+                    </div>
+                    <div class="pomo-timer-display" id="pomo-display">25:00</div>
+                    <div class="pomo-controls">
+                        <button class="pomo-btn primary" id="pomo-toggle-btn">Start</button>
+                        <button class="pomo-btn" id="pomo-reset-btn">Reset</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Header Bar -->
+            <header class="top-header">
+                <div class="header-left">
+                    <h1 class="header-title" id="page-title">Dashboard Overview</h1>
+                    <p class="header-subtitle" id="exam-subtitle">Targeting: Ultimate Final Exam</p>
+                </div>
+                <div class="header-right">
+                    <!-- Exam Countdown Widget -->
+                    <div class="countdown-widget">
+                        <div class="countdown-unit">
+                            <span class="count-val" id="cnt-days">00</span>
+                            <span class="count-lbl">Days</span>
+                        </div>
+                        <div class="countdown-colon">:</div>
+                        <div class="countdown-unit">
+                            <span class="count-val" id="cnt-hours">00</span>
+                            <span class="count-lbl">Hrs</span>
+                        </div>
+                        <div class="countdown-colon">:</div>
+                        <div class="countdown-unit">
+                            <span class="count-val" id="cnt-mins">00</span>
+                            <span class="count-lbl">Mins</span>
+                        </div>
+                    </div>
+
+                    <!-- Streak Badge -->
+                    <div class="streak-badge" title="Daily Study Streak">
+                        <span class="streak-fire">🔥</span>
+                        <span class="streak-count" id="streak-val">3</span>
+                        <span class="streak-lbl">Day Streak</span>
+                    </div>
+
+                    <!-- Action buttons -->
+                    <button class="action-btn glow-btn" id="quick-quiz-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        <span>Start Quiz</span>
+                    </button>
+                    <button class="action-btn outline-btn" id="demo-data-btn" title="Load sample exam data for testing">
+                        <span>Load Sample Data</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Views (SPA) -->
+            <div class="views-wrapper">
+                <!-- VIEW 1: DASHBOARD -->
+                <section class="view-panel active" id="view-dashboard">
+                    <!-- Top Stat Metrics Grid -->
+                    <div class="metrics-grid">
+                        <div class="metric-card gradient-border-cyan">
+                            <div class="metric-icon cyan">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-label">Days to Exam</span>
+                                <div class="metric-value" id="metric-days-left">0</div>
+                                <span class="metric-sub" id="metric-exam-date">Date not set</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card gradient-border-purple">
+                            <div class="metric-icon purple">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-label">Exam Readiness Index</span>
+                                <div class="metric-value" id="metric-readiness">0%</div>
+                                <div class="progress-bar-sm">
+                                    <div class="progress-fill-purple" id="metric-readiness-bar" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="metric-card gradient-border-emerald">
+                            <div class="metric-icon emerald">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-label">Topics Mastered</span>
+                                <div class="metric-value"><span id="metric-topics-mastered">0</span> / <span id="metric-topics-total">0</span></div>
+                                <span class="metric-sub" id="metric-topics-percent">0% overall mastery</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card gradient-border-amber">
+                            <div class="metric-icon amber">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-label">Today's Target Study</span>
+                                <div class="metric-value" id="metric-target-hours">0h</div>
+                                <span class="metric-sub" id="metric-completed-today">0h logged today</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Main Grid -->
+                    <div class="dash-grid">
+                        <!-- Left Column: Adaptive Today Plan -->
+                        <div class="dash-column wide">
+                            <div class="panel-card">
+                                <div class="panel-header">
+                                    <div class="panel-title-group">
+                                        <h2>Today's Adaptive AI Schedule</h2>
+                                        <span class="badge ai-badge">AI Optimized</span>
+                                    </div>
+                                    <button class="btn-sm secondary" id="recalc-ai-btn">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                        <span>Recalculate AI Schedule</span>
+                                    </button>
+                                </div>
+                                <div class="schedule-timeline" id="dashboard-schedule-list">
+                                    <!-- Schedule items injected here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Weak Topics & AI Insights -->
+                        <div class="dash-column narrow">
+                            <!-- Weak topics card -->
+                            <div class="panel-card">
+                                <div class="panel-header">
+                                    <h2>Focus Areas & Low Mastery</h2>
+                                    <span class="badge warning-badge">High Priority</span>
+                                </div>
+                                <div class="weak-topics-list" id="weak-topics-list">
+                                    <!-- Weak topics injected here -->
+                                </div>
+                            </div>
+
+                            <!-- AI Recommendation Banner Card -->
+                            <div class="panel-card ai-insight-card">
+                                <div class="ai-insight-header">
+                                    <div class="ai-sparkle">✨</div>
+                                    <h3>AI Tutor Strategy</h3>
+                                </div>
+                                <p class="ai-insight-text" id="ai-insight-text">
+                                    Analyzing your subject difficulties and exam date... Click "Load Sample Data" or add subjects to initialize your customized adaptive schedule.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 2: ADAPTIVE SCHEDULE -->
+                <section class="view-panel" id="view-schedule">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div>
+                                <h2>Adaptive Master Plan</h2>
+                                <p class="panel-sub">Dynamically re-ordered by AI based on exam proximity and quiz performance.</p>
+                            </div>
+                            <div class="header-actions">
+                                <select class="styled-select" id="schedule-filter-subject">
+                                    <option value="all">All Subjects</option>
+                                </select>
+                                <button class="btn-primary" id="add-custom-block-btn">+ Add Custom Study Session</button>
+                            </div>
+                        </div>
+
+                        <!-- Schedule Days Container -->
+                        <div class="schedule-days-container" id="master-schedule-container">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 3: SUBJECTS & TOPICS -->
+                <section class="view-panel" id="view-subjects">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div>
+                                <h2>Subjects & Topics Repository</h2>
+                                <p class="panel-sub">Manage syllabus items, set topic difficulty, and monitor individual mastery scores.</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn-secondary" id="open-subject-modal-btn">+ Add Subject</button>
+                                <button class="btn-primary" id="open-topic-modal-btn">+ Add Topic</button>
+                            </div>
+                        </div>
+
+                        <!-- Subjects Grid -->
+                        <div class="subjects-grid" id="subjects-grid">
+                            <!-- Cards injected dynamically -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 4: QUIZ ARENA -->
+                <section class="view-panel" id="view-quiz">
+                    <!-- Setup Screen -->
+                    <div class="quiz-container" id="quiz-setup-screen">
+                        <div class="panel-card text-center max-w-700">
+                            <div class="quiz-arena-icon">🎯</div>
+                            <h2>AI Practice & Quiz Arena</h2>
+                            <p class="panel-sub mb-24">Test your knowledge to increase topic mastery level and auto-adjust your study schedule.</p>
+
+                            <div class="form-grid mb-24">
+                                <div class="form-group">
+                                    <label>Select Subject</label>
+                                    <select class="styled-select" id="quiz-select-subject">
+                                        <!-- Options injected -->
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Select Topic</label>
+                                    <select class="styled-select" id="quiz-select-topic">
+                                        <!-- Options injected -->
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="quiz-modes-grid mb-24">
+                                <div class="quiz-mode-card selected" data-mode="standard">
+                                    <div class="mode-icon">⚡</div>
+                                    <div class="mode-title">Standard Practice</div>
+                                    <div class="mode-desc">5 conceptual questions with immediate feedback & explanations.</div>
+                                </div>
+                                <div class="quiz-mode-card" data-mode="weakness">
+                                    <div class="mode-icon">🔥</div>
+                                    <div class="mode-title">Weak Spot Drill</div>
+                                    <div class="mode-desc">Focus strictly on topics with mastery score under 60%.</div>
+                                </div>
+                            </div>
+
+                            <button class="btn-primary btn-lg w-full" id="start-quiz-session-btn">Launch Quiz</button>
+                        </div>
+                    </div>
+
+                    <!-- Active Quiz Playing Screen -->
+                    <div class="quiz-container hidden" id="quiz-active-screen">
+                        <div class="panel-card max-w-800">
+                            <div class="quiz-header-bar">
+                                <span class="badge subject-badge" id="quiz-topic-badge">Physics - Classical Mechanics</span>
+                                <div class="quiz-progress-text">Question <span id="quiz-q-curr">1</span> of <span id="quiz-q-total">5</span></div>
+                            </div>
+
+                            <div class="progress-bar-lg mb-24">
+                                <div class="progress-fill-cyan" id="quiz-progress-fill" style="width: 20%;"></div>
+                            </div>
+
+                            <div class="question-box">
+                                <h3 class="question-text" id="quiz-question-text">Loading question...</h3>
+                            </div>
+
+                            <div class="quiz-options-list" id="quiz-options-container">
+                                <!-- Options injected -->
+                            </div>
+
+                            <div class="explanation-box hidden" id="quiz-explanation-box">
+                                <div class="exp-title" id="quiz-exp-title">Explanation</div>
+                                <div class="exp-text" id="quiz-exp-text">Rationale content...</div>
+                            </div>
+
+                            <div class="quiz-footer-bar">
+                                <button class="btn-secondary" id="quiz-cancel-btn">Quit Quiz</button>
+                                <button class="btn-primary" id="quiz-submit-btn" disabled>Submit Answer</button>
+                                <button class="btn-primary hidden" id="quiz-next-btn">Next Question →</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quiz Summary Screen -->
+                    <div class="quiz-container hidden" id="quiz-result-screen">
+                        <div class="panel-card text-center max-w-700">
+                            <div class="result-badge-icon" id="result-emoji">🎉</div>
+                            <h2 id="result-title">Quiz Completed!</h2>
+                            <p class="panel-sub" id="result-sub">Great effort. Here is how your topic mastery changed:</p>
+
+                            <div class="score-circle-container mb-24">
+                                <div class="score-circle" id="result-score-circle">
+                                    <span class="score-percent" id="result-score-percent">80%</span>
+                                    <span class="score-label">Score</span>
+                                </div>
+                            </div>
+
+                            <div class="mastery-delta-card mb-24">
+                                <div class="delta-label">Topic Mastery Updated</div>
+                                <div class="delta-flex">
+                                    <span class="old-m" id="result-old-mastery">45%</span>
+                                    <span class="arrow">➔</span>
+                                    <span class="new-m" id="result-new-mastery">65%</span>
+                                    <span class="change-badge positive" id="result-delta-badge">+20%</span>
+                                </div>
+                                <p class="delta-note" id="result-ai-note">AI has adjusted your study schedule to reduce review frequency for this topic.</p>
+                            </div>
+
+                            <div class="result-actions">
+                                <button class="btn-secondary" id="result-retry-btn">Try Another Quiz</button>
+                                <button class="btn-primary" id="result-back-dash-btn">Return to Dashboard</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 5: ANALYTICS & PROGRESS -->
+                <section class="view-panel" id="view-analytics">
+                    <div class="analytics-grid">
+                        <!-- Chart 1: Subject Mastery Breakdown -->
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <h2>Subject Mastery Breakdown</h2>
+                                <span class="badge info-badge">Live Mastery</span>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-subject-mastery" height="260"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Chart 2: Difficulty vs Mastery Matrix -->
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <h2>Exam Readiness Projection</h2>
+                                <span class="badge success-badge">Target Trajectory</span>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-readiness-trend" height="260"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Topic Master Matrix Table -->
+                    <div class="panel-card mt-24">
+                        <div class="panel-header">
+                            <h2>Comprehensive Topic Mastery Index</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="styled-table">
+                                <thead>
+                                    <tr>
+                                        <th>Subject</th>
+                                        <th>Topic Name</th>
+                                        <th>Difficulty</th>
+                                        <th>Est. Hours</th>
+                                        <th>Mastery Level</th>
+                                        <th>Quizzes Taken</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analytics-topics-table">
+                                    <!-- Rows injected -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 6: SETTINGS & EXAM CONFIG -->
+                <section class="view-panel" id="view-settings">
+                    <div class="settings-grid">
+                        <!-- Form Card -->
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <h2>Exam Parameters & Goals</h2>
+                            </div>
+                            <form id="settings-exam-form">
+                                <div class="form-group mb-16">
+                                    <label for="set-exam-title">Exam Title / Goal</label>
+                                    <input type="text" id="set-exam-title" class="styled-input" placeholder="e.g. Computer Science Final Exam" required>
+                                </div>
+                                <div class="form-grid mb-16">
+                                    <div class="form-group">
+                                        <label for="set-exam-date">Exam Target Date & Time</label>
+                                        <input type="datetime-local" id="set-exam-date" class="styled-input" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="set-target-score">Target Score (%)</label>
+                                        <input type="number" id="set-target-score" class="styled-input" min="50" max="100" value="90" required>
+                                    </div>
+                                </div>
+                                <div class="form-grid mb-16">
+                                    <div class="form-group">
+                                        <label for="set-daily-hours">Daily Available Study Hours</label>
+                                        <input type="number" id="set-daily-hours" class="styled-input" step="0.5" min="0.5" max="16" value="3.5" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="set-peak-time">Peak Productivity Slot</label>
+                                        <select id="set-peak-time" class="styled-select">
+                                            <option value="morning">Morning (8 AM - 12 PM)</option>
+                                            <option value="afternoon">Afternoon (12 PM - 5 PM)</option>
+                                            <option value="evening" selected>Evening (5 PM - 9 PM)</option>
+                                            <option value="night">Night (9 PM - 1 AM)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn-primary">Save Exam Settings</button>
+                            </form>
+                        </div>
+
+                        <!-- Data Management Card -->
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <h2>Data Management & Web Storage</h2>
+                            </div>
+                            <p class="panel-sub mb-20">All your data is saved locally in your web browser. You can export JSON backups or load sample data anytime.</p>
+
+                            <div class="data-actions-list">
+                                <div class="data-action-item">
+                                    <div>
+                                        <div class="data-title">Load Sample Demo Data</div>
+                                        <div class="data-desc">Populate subjects (Math, Physics, CS), topics, quizzes, and schedules for quick testing.</div>
+                                    </div>
+                                    <button class="btn-secondary" id="btn-load-demo-data">Load Demo Data</button>
+                                </div>
+
+                                <div class="data-action-item">
+                                    <div>
+                                        <div class="data-title">Export Backup (JSON)</div>
+                                        <div class="data-desc">Download your study planner state to a local JSON file.</div>
+                                    </div>
+                                    <button class="btn-secondary" id="btn-export-data">Export Data</button>
+                                </div>
+
+                                <div class="data-action-item">
+                                    <div>
+                                        <div class="data-title">Import Backup (JSON)</div>
+                                        <div class="data-desc">Restore state from a previously saved JSON backup file.</div>
+                                    </div>
+                                    <input type="file" id="import-file-input" accept=".json" class="hidden">
+                                    <button class="btn-secondary" id="btn-import-data">Import File</button>
+                                </div>
+
+                                <div class="data-action-item danger">
+                                    <div>
+                                        <div class="data-title">Reset All Data</div>
+                                        <div class="data-desc">Clear local storage and wipe all subjects, schedules, and quizzes.</div>
+                                    </div>
+                                    <button class="btn-danger" id="btn-clear-data">Reset Planner</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: ADD / EDIT SUBJECT -->
+    <div class="modal-overlay hidden" id="modal-subject">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-subject-title">Add New Subject</h3>
+                <button class="close-modal-btn">&times;</button>
+            </div>
+            <form id="form-subject">
+                <input type="hidden" id="sub-id">
+                <div class="form-group mb-16">
+                    <label for="sub-name">Subject Name</label>
+                    <input type="text" id="sub-name" class="styled-input" placeholder="e.g. Mathematics" required>
+                </div>
+                <div class="form-grid mb-16">
+                    <div class="form-group">
+                        <label for="sub-color">Theme Color</label>
+                        <select id="sub-color" class="styled-select">
+                            <option value="#6366f1">Indigo Cyan</option>
+                            <option value="#8b5cf6">Purple Violet</option>
+                            <option value="#ec4899">Pink Rose</option>
+                            <option value="#10b981">Emerald Green</option>
+                            <option value="#f59e0b">Amber Orange</option>
+                            <option value="#06b6d4">Cyan Sky</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sub-icon">Icon Symbol</label>
+                        <select id="sub-icon" class="styled-select">
+                            <option value="📐">📐 Math / Geometry</option>
+                            <option value="⚡">⚡ Physics / Elec</option>
+                            <option value="💻">💻 Computer Science</option>
+                            <option value="🧬">🧬 Biology / Life</option>
+                            <option value="🧪">🧪 Chemistry</option>
+                            <option value="📜">📜 History / Lit</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary close-modal-btn">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Subject</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD / EDIT TOPIC -->
+    <div class="modal-overlay hidden" id="modal-topic">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-topic-title">Add New Topic</h3>
+                <button class="close-modal-btn">&times;</button>
+            </div>
+            <form id="form-topic">
+                <input type="hidden" id="top-id">
+                <div class="form-group mb-16">
+                    <label for="top-subject">Parent Subject</label>
+                    <select id="top-subject" class="styled-select" required>
+                        <!-- Injected -->
+                    </select>
+                </div>
+                <div class="form-group mb-16">
+                    <label for="top-name">Topic Name</label>
+                    <input type="text" id="top-name" class="styled-input" placeholder="e.g. Differential Equations" required>
+                </div>
+                <div class="form-grid mb-16">
+                    <div class="form-group">
+                        <label for="top-difficulty">Difficulty Level</label>
+                        <select id="top-difficulty" class="styled-select">
+                            <option value="1">Easy (Weight 1x)</option>
+                            <option value="2" selected>Medium (Weight 1.5x)</option>
+                            <option value="3">Hard (Weight 2x)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="top-hours">Estimated Study Hours</label>
+                        <input type="number" id="top-hours" class="styled-input" step="0.5" min="0.5" value="4.0" required>
+                    </div>
+                </div>
+                <div class="form-group mb-16">
+                    <label for="top-mastery">Initial Mastery Level (<span id="top-mastery-val">30</span>%)</label>
+                    <input type="range" id="top-mastery" class="styled-range" min="0" max="100" value="30">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary close-modal-btn">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Topic</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD CUSTOM STUDY SESSION -->
+    <div class="modal-overlay hidden" id="modal-custom-session">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Add Custom Study Block</h3>
+                <button class="close-modal-btn">&times;</button>
+            </div>
+            <form id="form-custom-session">
+                <div class="form-group mb-16">
+                    <label for="cs-topic">Select Topic</label>
+                    <select id="cs-topic" class="styled-select" required>
+                        <!-- Injected -->
+                    </select>
+                </div>
+                <div class="form-grid mb-16">
+                    <div class="form-group">
+                        <label for="cs-date">Session Date</label>
+                        <input type="date" id="cs-date" class="styled-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="cs-duration">Duration (Minutes)</label>
+                        <input type="number" id="cs-duration" class="styled-input" min="15" max="240" step="15" value="45" required>
+                    </div>
+                </div>
+                <div class="form-group mb-16">
+                    <label for="cs-activity">Session Type</label>
+                    <select id="cs-activity" class="styled-select">
+                        <option value="Deep Focus Study">Deep Focus Study</option>
+                        <option value="Active Recall & Quiz">Active Recall & Quiz</option>
+                        <option value="Problem Solving Drill">Problem Solving Drill</option>
+                        <option value="Concept Review & Notes">Concept Review & Notes</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary close-modal-btn">Cancel</button>
+                    <button type="submit" class="btn-primary">Add to Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>
