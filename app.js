@@ -79,6 +79,9 @@ class AppStore {
         const daysLeft = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
         const dailyCapMins = Math.round((examDetails.dailyAvailableHours || 3.5) * 60);
 
+        // Preserve existing user custom sessions
+        const customSessions = (this.state.scheduleSessions || []).filter(s => s.isCustom || (s.id && s.id.startsWith('cs-')));
+
         // Compute urgency per topic
         const scoredTopics = topics.map(t => {
             const diffWeight = t.difficulty === 1 ? 1.0 : (t.difficulty === 2 ? 1.5 : 2.0);
@@ -90,51 +93,53 @@ class AppStore {
         // Sort descending by urgency
         scoredTopics.sort((a, b) => b.urgency - a.urgency);
 
-        const newSessions = [];
+        const newSessions = [...customSessions];
         const timeSlots = ["Morning (09:00)", "Afternoon (14:00)", "Evening (18:30)", "Night (21:00)"];
 
-        // Distribute for the next 7 days
-        for (let d = 0; d < Math.min(7, daysLeft); d++) {
-            const currentDate = new Date(today);
-            currentDate.setDate(today.getDate() + d);
-            const dateStr = currentDate.toISOString().slice(0, 10);
+        if (scoredTopics.length > 0) {
+            // Distribute for the next 7 days
+            for (let d = 0; d < Math.min(7, daysLeft); d++) {
+                const currentDate = new Date(today);
+                currentDate.setDate(today.getDate() + d);
+                const dateStr = currentDate.toISOString().slice(0, 10);
 
-            let remainingMinsToday = dailyCapMins;
-            let slotIndex = 0;
+                let remainingMinsToday = dailyCapMins;
+                let slotIndex = 0;
 
-            // Cycle through scored topics
-            for (let i = 0; i < scoredTopics.length && remainingMinsToday >= 30; i++) {
-                const topic = scoredTopics[(i + d) % scoredTopics.length];
-                const duration = Math.min(60, remainingMinsToday);
-                const subject = subjects.find(s => s.id === topic.subjectId) || { name: "General", color: "#6366f1" };
+                // Cycle through scored topics
+                for (let i = 0; i < scoredTopics.length && remainingMinsToday >= 30; i++) {
+                    const topic = scoredTopics[(i + d) % scoredTopics.length];
+                    const duration = Math.min(60, remainingMinsToday);
+                    const subject = subjects.find(s => s.id === topic.subjectId) || { name: "General", color: "#6366f1" };
 
-                // Determine recommended activity
-                let activity = "Deep Focus Study";
-                if (topic.masteryLevel < 40) {
-                    activity = "Concept Review & Fundamentals";
-                } else if (topic.masteryLevel < 70) {
-                    activity = "Active Recall & Problem Solving";
-                } else {
-                    activity = "Speed Quiz & Advanced Drills";
+                    // Determine recommended activity
+                    let activity = "Deep Focus Study";
+                    if (topic.masteryLevel < 40) {
+                        activity = "Concept Review & Fundamentals";
+                    } else if (topic.masteryLevel < 70) {
+                        activity = "Active Recall & Problem Solving";
+                    } else {
+                        activity = "Speed Quiz & Advanced Drills";
+                    }
+
+                    newSessions.push({
+                        id: `sess-${dateStr}-${d}-${i}`,
+                        topicId: topic.id,
+                        topicName: topic.name,
+                        subjectName: subject.name,
+                        subjectColor: subject.color,
+                        date: dateStr,
+                        dayOffset: d,
+                        timeSlot: timeSlots[slotIndex % timeSlots.length],
+                        duration: duration,
+                        activity: activity,
+                        completed: false,
+                        urgencyScore: Math.round(topic.urgency * 10) / 10
+                    });
+
+                    remainingMinsToday -= duration;
+                    slotIndex++;
                 }
-
-                newSessions.push({
-                    id: `sess-${dateStr}-${d}-${i}`,
-                    topicId: topic.id,
-                    topicName: topic.name,
-                    subjectName: subject.name,
-                    subjectColor: subject.color,
-                    date: dateStr,
-                    dayOffset: d,
-                    timeSlot: timeSlots[slotIndex % timeSlots.length],
-                    duration: duration,
-                    activity: activity,
-                    completed: false,
-                    urgencyScore: Math.round(topic.urgency * 10) / 10
-                });
-
-                remainingMinsToday -= duration;
-                slotIndex++;
             }
         }
 
@@ -208,18 +213,21 @@ class AppStore {
     }
 
     getOrCreateQuestionsForTopic(topicId) {
-        if (this.state.quizBank[topicId] && this.state.quizBank[topicId].length >= 3) {
-            return this.state.quizBank[topicId];
+        const existing = this.state.quizBank[topicId] || [];
+        if (existing.length >= 3) {
+            return existing;
         }
 
         const topic = this.state.topics.find(t => t.id === topicId);
         const name = topic ? topic.name : "Selected Concept";
 
-        // Dynamically generated conceptual questions
-        const generated = [
-            {
-                id: `gen-${topicId}-1`,
-                question: `In fundamental study of ${name}, what is the key primary objective during analysis?`,
+        const needed = 3 - existing.length;
+        const generated = [];
+        for (let i = 1; i <= needed; i++) {
+            const idx = existing.length + i;
+            generated.push({
+                id: `gen-${topicId}-${idx}`,
+                question: `In fundamental study of ${name} (Part ${idx}), what is the primary objective during analysis?`,
                 options: [
                     `Minimizing system errors and optimizing core efficiency`,
                     `Ignoring structural edge cases`,
@@ -228,36 +236,40 @@ class AppStore {
                 ],
                 correctIndex: 0,
                 explanation: `Understanding ${name} requires optimizing core principles while preventing systemic errors.`
-            },
-            {
-                id: `gen-${topicId}-2`,
-                question: `When evaluating edge case scenarios in ${name}, which method yields maximum reliability?`,
-                options: [
-                    `Strict boundary validation and formal verification`,
-                    `Random trial without measurements`,
-                    `Relying purely on intuitive guesswork`,
-                    `De-prioritizing weak feedback loops`
-                ],
-                correctIndex: 0,
-                explanation: `Boundary validation ensures theoretical principles of ${name} hold under extreme conditions.`
-            },
-            {
-                id: `gen-${topicId}-3`,
-                question: `How does mastering ${name} directly impact overall exam readiness?`,
-                options: [
-                    `It establishes core problem-solving frameworks that connect related topics`,
-                    `It only affects memorization without conceptual benefit`,
-                    `It decreases study efficiency`,
-                    `It is completely independent of exam topics`
-                ],
-                correctIndex: 0,
-                explanation: `Deep understanding of ${name} unlocks higher-order synthesis questions on the exam.`
-            }
-        ];
+            });
+        }
 
-        this.state.quizBank[topicId] = generated;
+        const combined = [...existing, ...generated];
+        this.state.quizBank[topicId] = combined;
         this.saveState();
-        return generated;
+        return combined;
+    }
+
+    checkAndUpdateStreak() {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const streak = this.state.streak || { count: 0, lastDate: null };
+
+        if (streak.lastDate === todayStr) {
+            return;
+        }
+
+        if (streak.lastDate) {
+            const last = new Date(streak.lastDate + 'T00:00:00');
+            const today = new Date(todayStr + 'T00:00:00');
+            const diffDays = Math.round((today - last) / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 1) {
+                streak.count += 1;
+            } else if (diffDays > 1) {
+                streak.count = 1;
+            }
+        } else {
+            streak.count = 1;
+        }
+
+        streak.lastDate = todayStr;
+        this.state.streak = streak;
+        this.saveState();
     }
 
     updateTopicMastery(topicId, quizScorePercent) {
@@ -282,6 +294,8 @@ class AppStore {
             topic.correctAnswers = (topic.correctAnswers || 0) + 1;
         }
         topic.lastStudied = new Date().toISOString();
+
+        this.checkAndUpdateStreak();
 
         // Save and trigger schedule re-balance
         this.saveState();
@@ -427,11 +441,22 @@ class UIController {
     }
 
     initEventListeners() {
+        // Mobile Sidebar Navigation Toggle
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', () => this.toggleMobileSidebar());
+        }
+        if (sidebarBackdrop) {
+            sidebarBackdrop.addEventListener('click', () => this.closeMobileSidebar());
+        }
+
         // Tab Navigation
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const tab = e.currentTarget.dataset.tab;
                 this.switchTab(tab);
+                this.closeMobileSidebar();
             });
         });
 
@@ -450,14 +475,21 @@ class UIController {
             this.showNotification('AI Schedule re-balanced based on latest progress!');
         });
 
+        // Schedule Filter Dropdown Event Listener
+        const scheduleFilterSelect = document.getElementById('schedule-filter-subject');
+        if (scheduleFilterSelect) {
+            scheduleFilterSelect.addEventListener('change', () => {
+                this.renderScheduleView();
+            });
+        }
+
         // Modals Open/Close
         document.getElementById('open-subject-modal-btn').addEventListener('click', () => {
-            this.openModal('modal-subject');
+            this.openSubjectModal();
         });
 
         document.getElementById('open-topic-modal-btn').addEventListener('click', () => {
-            this.populateSubjectDropdowns();
-            this.openModal('modal-topic');
+            this.openTopicModal();
         });
 
         document.getElementById('add-custom-block-btn').addEventListener('click', () => {
@@ -471,6 +503,22 @@ class UIController {
                 const overlay = e.target.closest('.modal-overlay');
                 if (overlay) overlay.classList.add('hidden');
             });
+        });
+
+        // Modal Backdrop Click & Keyboard Accessibility
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.add('hidden');
+                }
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
+                this.closeMobileSidebar();
+            }
         });
 
         // Form Submissions
@@ -551,6 +599,27 @@ class UIController {
         document.getElementById('top-mastery').addEventListener('input', (e) => {
             document.getElementById('top-mastery-val').textContent = e.target.value;
         });
+
+        // Window Resize Listener for Charts
+        window.addEventListener('resize', () => {
+            if (store.state.activeTab === 'analytics') {
+                this.renderAnalyticsView();
+            }
+        });
+    }
+
+    toggleMobileSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        if (sidebar) sidebar.classList.toggle('mobile-open');
+        if (backdrop) backdrop.classList.toggle('hidden');
+    }
+
+    closeMobileSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        if (sidebar) sidebar.classList.remove('mobile-open');
+        if (backdrop) backdrop.classList.add('hidden');
     }
 
     switchTab(tabId) {
@@ -594,7 +663,7 @@ class UIController {
             const now = new Date();
             const diff = examDate - now;
 
-            if (diff <= 0) {
+            if (isNaN(diff) || diff <= 0) {
                 document.getElementById('cnt-days').textContent = '00';
                 document.getElementById('cnt-hours').textContent = '00';
                 document.getElementById('cnt-mins').textContent = '00';
@@ -624,7 +693,7 @@ class UIController {
         const diffMs = examDate - new Date();
         const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
         document.getElementById('metric-days-left').textContent = daysLeft;
-        document.getElementById('metric-exam-date').textContent = examDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        document.getElementById('metric-exam-date').textContent = isNaN(examDate.getTime()) ? 'Date not set' : examDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
         // Calculate Overall Readiness
         let totalWeight = 0;
@@ -692,6 +761,9 @@ class UIController {
                     const session = store.state.scheduleSessions.find(s => s.id === id);
                     if (session) {
                         session.completed = !session.completed;
+                        if (session.completed) {
+                            store.checkAndUpdateStreak();
+                        }
                         store.saveState();
                         this.renderAll();
                     }
@@ -755,7 +827,8 @@ class UIController {
         const container = document.getElementById('master-schedule-container');
         container.innerHTML = '';
 
-        const filterSubject = document.getElementById('schedule-filter-subject').value;
+        const filterSelect = document.getElementById('schedule-filter-subject');
+        const filterSubject = filterSelect ? filterSelect.value : 'all';
         const sessions = store.state.scheduleSessions.filter(s => {
             if (filterSubject === 'all') return true;
             const topic = store.state.topics.find(t => t.id === s.topicId);
@@ -816,6 +889,9 @@ class UIController {
                     const session = store.state.scheduleSessions.find(s => s.id === id);
                     if (session) {
                         session.completed = !session.completed;
+                        if (session.completed) {
+                            store.checkAndUpdateStreak();
+                        }
                         store.saveState();
                         this.renderAll();
                     }
@@ -851,6 +927,10 @@ class UIController {
                             <div style="font-size: 12px; color: #94a3b8;">${subTopics.length} Topics</div>
                         </div>
                     </div>
+                    <div class="subject-card-header-actions">
+                        <button class="icon-btn edit-subject-btn" data-id="${sub.id}" title="Edit Subject">✏️</button>
+                        <button class="icon-btn danger delete-subject-btn" data-id="${sub.id}" title="Delete Subject">🗑️</button>
+                    </div>
                 </div>
 
                 <div class="subject-progress-container">
@@ -873,11 +953,33 @@ class UIController {
                                 </span>
                                 <span style="font-weight: 700; font-size: 13px; color: ${t.masteryLevel >= 70 ? '#34d399' : '#f87171'};">${t.masteryLevel}%</span>
                                 <button class="btn-sm secondary quiz-topic-btn" data-topic="${t.id}">Quiz</button>
+                                <button class="icon-btn edit-topic-btn" data-id="${t.id}" title="Edit Topic">✏️</button>
+                                <button class="icon-btn danger delete-topic-btn" data-id="${t.id}" title="Delete Topic">🗑️</button>
                             </div>
                         </div>
                     `).join('')}
                 </div>
             `;
+
+            card.querySelector('.edit-subject-btn').addEventListener('click', (e) => {
+                this.openSubjectModal(e.currentTarget.dataset.id);
+            });
+
+            card.querySelector('.delete-subject-btn').addEventListener('click', (e) => {
+                this.deleteSubject(e.currentTarget.dataset.id);
+            });
+
+            card.querySelectorAll('.edit-topic-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    this.openTopicModal(e.currentTarget.dataset.id);
+                });
+            });
+
+            card.querySelectorAll('.delete-topic-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    this.deleteTopic(e.currentTarget.dataset.id);
+                });
+            });
 
             card.querySelectorAll('.quiz-topic-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -897,9 +999,15 @@ class UIController {
             this.populateTopicDropdown('quiz-select-topic', store.state.subjects[0].id);
         }
 
-        // Filter subject dropdown in Schedule view too
+        // Preserve current schedule filter selection during render
         const schedFilter = document.getElementById('schedule-filter-subject');
-        schedFilter.innerHTML = '<option value="all">All Subjects</option>' + store.state.subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        if (schedFilter) {
+            const currentVal = schedFilter.value || 'all';
+            schedFilter.innerHTML = '<option value="all">All Subjects</option>' + store.state.subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            if ([...schedFilter.options].some(opt => opt.value === currentVal)) {
+                schedFilter.value = currentVal;
+            }
+        }
     }
 
     launchTopicQuiz(topicId) {
@@ -1068,13 +1176,33 @@ class UIController {
         this.renderTopicsMasteryTable();
     }
 
+    setupCanvasDPI(canvas) {
+        const dpr = window.devicePixelRatio || 1;
+        const parent = canvas.parentElement;
+        const displayWidth = parent ? parent.clientWidth : 500;
+        const displayHeight = 260;
+
+        canvas.width = Math.floor(displayWidth * dpr);
+        canvas.height = Math.floor(displayHeight * dpr);
+        canvas.style.width = `${displayWidth}px`;
+        canvas.style.height = `${displayHeight}px`;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx.resetTransform) {
+            ctx.resetTransform();
+        } else {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+        }
+        ctx.scale(dpr, dpr);
+
+        return { ctx, width: displayWidth, height: displayHeight };
+    }
+
     renderSubjectMasteryChart() {
         const canvas = document.getElementById('chart-subject-mastery');
         if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const width = canvas.width = canvas.parentElement.clientWidth;
-        const height = canvas.height = 260;
-
+        
+        const { ctx, width, height } = this.setupCanvasDPI(canvas);
         ctx.clearRect(0, 0, width, height);
 
         const subjects = store.state.subjects;
@@ -1120,10 +1248,8 @@ class UIController {
     renderReadinessTrendChart() {
         const canvas = document.getElementById('chart-readiness-trend');
         if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const width = canvas.width = canvas.parentElement.clientWidth;
-        const height = canvas.height = 260;
 
+        const { ctx, width, height } = this.setupCanvasDPI(canvas);
         ctx.clearRect(0, 0, width, height);
 
         // Simulated readiness trend over 7 days
@@ -1183,11 +1309,25 @@ class UIController {
                 <td style="font-weight: 700; color: ${t.masteryLevel >= 70 ? '#34d399' : '#f87171'};">${t.masteryLevel}%</td>
                 <td>${t.quizzesTaken || 0}</td>
                 <td><span class="badge ${t.masteryLevel >= 75 ? 'success-badge' : 'warning-badge'}">${t.masteryLevel >= 75 ? 'Mastered' : 'Needs Review'}</span></td>
-                <td><button class="btn-sm secondary quiz-table-btn" data-topic="${t.id}">Take Quiz</button></td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <button class="btn-sm secondary quiz-table-btn" data-topic="${t.id}">Take Quiz</button>
+                        <button class="icon-btn edit-topic-btn" data-id="${t.id}" title="Edit Topic">✏️</button>
+                        <button class="icon-btn danger delete-topic-btn" data-id="${t.id}" title="Delete Topic">🗑️</button>
+                    </div>
+                </td>
             `;
 
             tr.querySelector('.quiz-table-btn').addEventListener('click', (e) => {
                 this.launchTopicQuiz(e.currentTarget.dataset.topic);
+            });
+
+            tr.querySelector('.edit-topic-btn').addEventListener('click', (e) => {
+                this.openTopicModal(e.currentTarget.dataset.id);
+            });
+
+            tr.querySelector('.delete-topic-btn').addEventListener('click', (e) => {
+                this.deleteTopic(e.currentTarget.dataset.id);
             });
 
             tbody.appendChild(tr);
@@ -1203,9 +1343,97 @@ class UIController {
         document.getElementById('set-peak-time').value = examDetails.peakTime || 'evening';
     }
 
-    // Modal Form Handlers
+    // Modal Form Handlers & Openers
     openModal(modalId) {
         document.getElementById(modalId).classList.remove('hidden');
+    }
+
+    openSubjectModal(subjectId = null) {
+        const titleElem = document.getElementById('modal-subject-title');
+        const idInput = document.getElementById('sub-id');
+        const nameInput = document.getElementById('sub-name');
+        const colorInput = document.getElementById('sub-color');
+        const iconInput = document.getElementById('sub-icon');
+
+        document.getElementById('form-subject').reset();
+
+        if (subjectId) {
+            const sub = store.state.subjects.find(s => s.id === subjectId);
+            if (sub) {
+                if (titleElem) titleElem.textContent = 'Edit Subject';
+                idInput.value = sub.id;
+                nameInput.value = sub.name;
+                colorInput.value = sub.color || '#6366f1';
+                iconInput.value = sub.icon || '📚';
+            }
+        } else {
+            if (titleElem) titleElem.textContent = 'Add New Subject';
+            idInput.value = '';
+        }
+
+        this.openModal('modal-subject');
+    }
+
+    openTopicModal(topicId = null) {
+        this.populateSubjectDropdowns();
+        const titleElem = document.getElementById('modal-topic-title');
+        const idInput = document.getElementById('top-id');
+        const subSelect = document.getElementById('top-subject');
+        const nameInput = document.getElementById('top-name');
+        const diffSelect = document.getElementById('top-difficulty');
+        const hoursInput = document.getElementById('top-hours');
+        const masteryInput = document.getElementById('top-mastery');
+        const masteryVal = document.getElementById('top-mastery-val');
+
+        document.getElementById('form-topic').reset();
+
+        if (topicId) {
+            const top = store.state.topics.find(t => t.id === topicId);
+            if (top) {
+                if (titleElem) titleElem.textContent = 'Edit Topic';
+                idInput.value = top.id;
+                subSelect.value = top.subjectId;
+                nameInput.value = top.name;
+                diffSelect.value = top.difficulty || 2;
+                hoursInput.value = top.estimatedHours || 4.0;
+                masteryInput.value = top.masteryLevel || 30;
+                if (masteryVal) masteryVal.textContent = top.masteryLevel || 30;
+            }
+        } else {
+            if (titleElem) titleElem.textContent = 'Add New Topic';
+            idInput.value = '';
+            masteryInput.value = 30;
+            if (masteryVal) masteryVal.textContent = 30;
+        }
+
+        this.openModal('modal-topic');
+    }
+
+    deleteSubject(subjectId) {
+        const sub = store.state.subjects.find(s => s.id === subjectId);
+        if (!sub) return;
+
+        if (confirm(`Are you sure you want to delete "${sub.name}"? This will also delete all associated topics.`)) {
+            store.state.subjects = store.state.subjects.filter(s => s.id !== subjectId);
+            store.state.topics = store.state.topics.filter(t => t.subjectId !== subjectId);
+            store.saveState();
+            store.generateAdaptiveSchedule();
+            this.renderAll();
+            this.showNotification(`Deleted Subject: ${sub.name}`);
+        }
+    }
+
+    deleteTopic(topicId) {
+        const topic = store.state.topics.find(t => t.id === topicId);
+        if (!topic) return;
+
+        if (confirm(`Are you sure you want to delete topic "${topic.name}"?`)) {
+            store.state.topics = store.state.topics.filter(t => t.id !== topicId);
+            store.saveState();
+            store.generateAdaptiveSchedule();
+            this.renderAll();
+            this.showNotification(`Deleted Topic: ${topic.name}`);
+        }
     }
 
     populateSubjectDropdowns() {
@@ -1223,28 +1451,39 @@ class UIController {
     }
 
     handleSaveSubject() {
+        const id = document.getElementById('sub-id').value;
         const name = document.getElementById('sub-name').value.trim();
         const color = document.getElementById('sub-color').value;
         const icon = document.getElementById('sub-icon').value;
 
         if (!name) return;
 
-        const newSubject = {
-            id: `sub-${Date.now()}`,
-            name,
-            color,
-            icon
-        };
+        if (id) {
+            const existingSub = store.state.subjects.find(s => s.id === id);
+            if (existingSub) {
+                existingSub.name = name;
+                existingSub.color = color;
+                existingSub.icon = icon;
+            }
+        } else {
+            const newSubject = {
+                id: `sub-${Date.now()}`,
+                name,
+                color,
+                icon
+            };
+            store.state.subjects.push(newSubject);
+        }
 
-        store.state.subjects.push(newSubject);
         store.saveState();
         document.getElementById('modal-subject').classList.add('hidden');
         document.getElementById('form-subject').reset();
         this.renderAll();
-        this.showNotification(`Added Subject: ${name}`);
+        this.showNotification(id ? `Updated Subject: ${name}` : `Added Subject: ${name}`);
     }
 
     handleSaveTopic() {
+        const id = document.getElementById('top-id').value;
         const subjectId = document.getElementById('top-subject').value;
         const name = document.getElementById('top-name').value.trim();
         const difficulty = parseInt(document.getElementById('top-difficulty').value);
@@ -1253,24 +1492,35 @@ class UIController {
 
         if (!name || !subjectId) return;
 
-        const newTopic = {
-            id: `top-${Date.now()}`,
-            subjectId,
-            name,
-            difficulty,
-            estimatedHours,
-            masteryLevel,
-            quizzesTaken: 0,
-            correctAnswers: 0,
-            lastStudied: null
-        };
+        if (id) {
+            const existingTopic = store.state.topics.find(t => t.id === id);
+            if (existingTopic) {
+                existingTopic.subjectId = subjectId;
+                existingTopic.name = name;
+                existingTopic.difficulty = difficulty;
+                existingTopic.estimatedHours = estimatedHours;
+                existingTopic.masteryLevel = masteryLevel;
+            }
+        } else {
+            const newTopic = {
+                id: `top-${Date.now()}`,
+                subjectId,
+                name,
+                difficulty,
+                estimatedHours,
+                masteryLevel,
+                quizzesTaken: 0,
+                correctAnswers: 0,
+                lastStudied: null
+            };
+            store.state.topics.push(newTopic);
+        }
 
-        store.state.topics.push(newTopic);
         store.generateAdaptiveSchedule();
         document.getElementById('modal-topic').classList.add('hidden');
         document.getElementById('form-topic').reset();
         this.renderAll();
-        this.showNotification(`Added Topic: ${name}`);
+        this.showNotification(id ? `Updated Topic: ${name}` : `Added Topic: ${name}`);
     }
 
     handleSaveCustomSession() {
@@ -1286,6 +1536,7 @@ class UIController {
 
         store.state.scheduleSessions.unshift({
             id: `cs-${Date.now()}`,
+            isCustom: true,
             topicId,
             topicName: topic.name,
             subjectName: subject.name,
@@ -1314,6 +1565,7 @@ class UIController {
             peakTime: document.getElementById('set-peak-time').value
         };
 
+        store.saveState();
         store.generateAdaptiveSchedule();
         this.renderAll();
         this.showNotification('Exam settings saved & schedule updated!');
@@ -1375,7 +1627,6 @@ class UIController {
         setTimeout(() => toast.remove(), 3500);
     }
 }
-
 // Initialize Application when DOM ready
 document.addEventListener('DOMContentLoaded', () => {
     window.appUI = new UIController();
