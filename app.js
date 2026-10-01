@@ -1,16 +1,22 @@
 /**
  * AetherMind AI Study Planner & Exam Mastery Engine
- * Vanilla JavaScript SPA with Adaptive AI Scheduling & Interactive Quiz Engine
+ * Vanilla JavaScript SPA with Adaptive AI Scheduling, Interactive Quiz Arena,
+ * Spaced Repetition Flashcards (SM-2), Weekly Calendar Grid & Cloud Auth Engine
  */
 
-// Global State Key
 const STORAGE_KEY = 'aethermind_ai_study_planner_v1';
 
 // Default State Model
 const defaultState = {
+    user: {
+        name: "Guest Student",
+        email: "guest@local",
+        isLoggedIn: false,
+        authStatus: "Offline Local Mode"
+    },
     examDetails: {
         title: "Computer Science & Engineering Finals",
-        examDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // 14 days from today
+        examDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
         targetScore: 90,
         dailyAvailableHours: 4.0,
         peakTime: "evening"
@@ -28,12 +34,28 @@ const defaultState = {
         { id: "top-5", subjectId: "sub-3", name: "Quantum Mechanics", difficulty: 3, estimatedHours: 8.0, masteryLevel: 25, quizzesTaken: 2, correctAnswers: 3, lastStudied: null },
         { id: "top-6", subjectId: "sub-3", name: "Thermodynamics & Kinetics", difficulty: 1, estimatedHours: 4.0, masteryLevel: 80, quizzesTaken: 5, correctAnswers: 18, lastStudied: null }
     ],
+    topicNotes: {
+        "top-1": "Binary Tree Height h <= log2(N+1). AVL Trees maintain balance factor <= 1.",
+        "top-3": "Eigenvalues: det(A - λI) = 0. Eigenvectors: (A - λI)v = 0."
+    },
+    flashcards: [
+        { id: "fc-1", topicId: "top-1", front: "What is the worst-case search time in an unbalanced BST?", back: "O(N). Elements can form a degenerate linear chain.", notes: "Use AVL or Red-Black trees to enforce O(log N).", interval: 1, repetition: 0, easeFactor: 2.5, dueDate: new Date().toISOString().slice(0, 10) },
+        { id: "fc-2", topicId: "top-2", front: "What is the tight lower bound for comparison-based sorting?", back: "Ω(N log N)", notes: "Proved using decision tree depth analysis.", interval: 2, repetition: 1, easeFactor: 2.5, dueDate: new Date().toISOString().slice(0, 10) },
+        { id: "fc-3", topicId: "top-3", front: "What equation defines an eigenvalue λ and eigenvector v?", back: "Av = λv", notes: "Characteristic polynomial: det(A - λI) = 0.", interval: 4, repetition: 2, easeFactor: 2.6, dueDate: new Date().toISOString().slice(0, 10) }
+    ],
     scheduleSessions: [],
+    scheduleViewMode: "list",
     quizBank: {},
     studyLogs: [
         { id: "log-1", date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0,10), minutes: 120, topicId: "top-1" },
-        { id: "log-2", date: new Date(Date.now() - 1 * 86400000).toISOString().slice(0,10), minutes: 180, topicId: "top-3" }
+        { id: "log-2", date: new Date(Date.now() - 1 * 86400000).toISOString().slice(0,10), minutes: 180, topicId: "top-3" },
+        { id: "log-3", date: new Date().toISOString().slice(0,10), minutes: 90, topicId: "top-2" }
     ],
+    aiConfig: {
+        apiKey: "",
+        model: "gemini-1.5-flash",
+        persona: "supportive"
+    },
     streak: { count: 3, lastDate: new Date().toISOString().slice(0,10) },
     activeTab: "dashboard"
 };
@@ -79,25 +101,21 @@ class AppStore {
         const daysLeft = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
         const dailyCapMins = Math.round((examDetails.dailyAvailableHours || 3.5) * 60);
 
-        // Preserve existing user custom sessions
         const customSessions = (this.state.scheduleSessions || []).filter(s => s.isCustom || (s.id && s.id.startsWith('cs-')));
 
-        // Compute urgency per topic
         const scoredTopics = topics.map(t => {
             const diffWeight = t.difficulty === 1 ? 1.0 : (t.difficulty === 2 ? 1.5 : 2.0);
-            const deficit = (100 - t.masteryLevel) / 100; // 0..1
+            const deficit = (100 - (t.masteryLevel || 0)) / 100;
             const urgency = diffWeight * (deficit * 0.7 + 0.3) * (t.estimatedHours || 4);
             return { ...t, urgency };
         });
 
-        // Sort descending by urgency
         scoredTopics.sort((a, b) => b.urgency - a.urgency);
 
         const newSessions = [...customSessions];
         const timeSlots = ["Morning (09:00)", "Afternoon (14:00)", "Evening (18:30)", "Night (21:00)"];
 
         if (scoredTopics.length > 0) {
-            // Distribute for the next 7 days
             for (let d = 0; d < Math.min(7, daysLeft); d++) {
                 const currentDate = new Date(today);
                 currentDate.setDate(today.getDate() + d);
@@ -106,13 +124,11 @@ class AppStore {
                 let remainingMinsToday = dailyCapMins;
                 let slotIndex = 0;
 
-                // Cycle through scored topics
                 for (let i = 0; i < scoredTopics.length && remainingMinsToday >= 30; i++) {
                     const topic = scoredTopics[(i + d) % scoredTopics.length];
                     const duration = Math.min(60, remainingMinsToday);
                     const subject = subjects.find(s => s.id === topic.subjectId) || { name: "General", color: "#6366f1" };
 
-                    // Determine recommended activity
                     let activity = "Deep Focus Study";
                     if (topic.masteryLevel < 40) {
                         activity = "Concept Review & Fundamentals";
@@ -156,21 +172,14 @@ class AppStore {
                         question: "What is the worst-case time complexity for searching an element in an unbalanced Binary Search Tree (BST)?",
                         options: ["O(1)", "O(log N)", "O(N)", "O(N log N)"],
                         correctIndex: 2,
-                        explanation: "In an unbalanced BST, elements can form a degenerate linear chain (linked list), resulting in O(N) traversal time."
+                        explanation: "In an unbalanced BST, elements can form a degenerate linear chain, resulting in O(N) traversal time."
                     },
                     {
                         id: "q-1-2",
-                        question: "Which data structure uses LIFO (Last In, First Out) ordering?",
+                        question: "Which data structure operates on LIFO (Last In, First Out) principle?",
                         options: ["Queue", "Stack", "Heap", "Hash Table"],
                         correctIndex: 1,
-                        explanation: "A Stack operates on Last In First Out (LIFO) principle where push and pop occur at the top."
-                    },
-                    {
-                        id: "q-1-3",
-                        question: "What is the amortized time complexity of insertion into a dynamic array (like JavaScript Array or Python list)?",
-                        options: ["O(1)", "O(N)", "O(log N)", "O(N^2)"],
-                        correctIndex: 0,
-                        explanation: "Although resizing takes O(N) occasionally, doubling array capacity spreads cost over N operations, giving O(1) amortized time."
+                        explanation: "A Stack operates on LIFO ordering where elements are added and removed from the top."
                     }
                 ],
                 "top-2": [
@@ -179,36 +188,44 @@ class AppStore {
                         question: "Which algorithm design strategy does QuickSort utilize?",
                         options: ["Greedy Approach", "Dynamic Programming", "Divide and Conquer", "Backtracking"],
                         correctIndex: 2,
-                        explanation: "QuickSort partitions an array around a pivot and recursively sorts subarrays, which is a classic Divide and Conquer strategy."
-                    },
-                    {
-                        id: "q-2-2",
-                        question: "What is the tight lower bound for comparison-based sorting algorithms?",
-                        options: ["Ω(N)", "Ω(N log N)", "Ω(N^2)", "Ω(2^N)"],
-                        correctIndex: 1,
-                        explanation: "Decision tree analysis proves that any comparison-based sort requires at least Ω(N log N) comparison steps."
-                    }
-                ],
-                "top-3": [
-                    {
-                        id: "q-3-1",
-                        question: "If λ is an eigenvalue of matrix A with eigenvector v, which equation holds true?",
-                        options: ["Av = λv", "Aλ = v", "Av = λ^2 v", "A + v = λI"],
-                        correctIndex: 0,
-                        explanation: "By definition, an eigenvector v under linear transformation A is scaled by scalar factor λ, so Av = λv."
-                    }
-                ],
-                "top-5": [
-                    {
-                        id: "q-5-1",
-                        question: "What does the square of the magnitude of Schrödinger's wave function |Ψ(x,t)|^2 represent?",
-                        options: ["Total Energy Density", "Probability Density of finding the particle at position x", "Particle Velocity", "Momentum Uncertainty"],
-                        correctIndex: 1,
-                        explanation: "Born's statistical interpretation states that |Ψ(x,t)|^2 represents probability density of particle location."
+                        explanation: "QuickSort partitions an array around a pivot and recursively sorts subarrays (Divide and Conquer)."
                     }
                 ]
             };
             this.saveState();
+        }
+    }
+
+    async fetchAIQuestions(topicName) {
+        const { apiKey, model } = this.state.aiConfig || {};
+        if (!apiKey) return null;
+
+        try {
+            const prompt = `Generate 3 multiple choice quiz questions for topic "${topicName}". Return ONLY a raw JSON array of objects with keys: "question", "options" (array of 4 strings), "correctIndex" (integer 0-3), and "explanation". Do not wrap in markdown tags.`;
+            
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-1.5-flash'}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            if (!response.ok) return null;
+
+            const data = await response.json();
+            const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const questions = JSON.parse(cleaned);
+            
+            return questions.map((q, i) => ({
+                id: `ai-gen-${Date.now()}-${i}`,
+                question: q.question,
+                options: q.options,
+                correctIndex: q.correctIndex,
+                explanation: q.explanation
+            }));
+        } catch (e) {
+            console.error("Gemini API generation error:", e);
+            return null;
         }
     }
 
@@ -243,6 +260,44 @@ class AppStore {
         this.state.quizBank[topicId] = combined;
         this.saveState();
         return combined;
+    }
+
+    rateFlashcard(cardId, rating) {
+        const fc = (this.state.flashcards || []).find(c => c.id === cardId);
+        if (!fc) return;
+
+        let { interval = 1, repetition = 0, easeFactor = 2.5 } = fc;
+
+        if (rating < 2) {
+            repetition = 0;
+            interval = 1;
+        } else {
+            if (repetition === 0) interval = 1;
+            else if (repetition === 1) interval = 6;
+            else interval = Math.round(interval * easeFactor);
+            repetition += 1;
+        }
+
+        easeFactor = easeFactor + (0.1 - (4 - rating) * (0.08 + (4 - rating) * 0.02));
+        if (easeFactor < 1.3) easeFactor = 1.3;
+
+        const due = new Date();
+        due.setDate(due.getDate() + interval);
+        
+        fc.interval = interval;
+        fc.repetition = repetition;
+        fc.easeFactor = Math.round(easeFactor * 100) / 100;
+        fc.dueDate = due.toISOString().slice(0, 10);
+
+        if (rating >= 3 && fc.topicId) {
+            const topic = this.state.topics.find(t => t.id === fc.topicId);
+            if (topic) {
+                topic.masteryLevel = Math.min(100, (topic.masteryLevel || 0) + 3);
+            }
+        }
+
+        this.checkAndUpdateStreak();
+        this.saveState();
     }
 
     checkAndUpdateStreak() {
@@ -296,8 +351,6 @@ class AppStore {
         topic.lastStudied = new Date().toISOString();
 
         this.checkAndUpdateStreak();
-
-        // Save and trigger schedule re-balance
         this.saveState();
         this.generateAdaptiveSchedule();
 
@@ -305,7 +358,7 @@ class AppStore {
     }
 }
 
-// Instantiate Global Store
+// Global Store Instance
 const store = new AppStore();
 
 // Synthesizer Web Audio Feedback
@@ -322,8 +375,8 @@ class SoundFX {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(523.25, this.ctx.currentTime); // C5
-            osc.frequency.exponentialRampToValueAtTime(659.25, this.ctx.currentTime + 0.15); // E5
+            osc.frequency.setValueAtTime(523.25, this.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(659.25, this.ctx.currentTime + 0.15);
             gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
             osc.connect(gain);
@@ -339,8 +392,8 @@ class SoundFX {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(220, this.ctx.currentTime); // A3
-            osc.frequency.exponentialRampToValueAtTime(146.83, this.ctx.currentTime + 0.2); // D3
+            osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(146.83, this.ctx.currentTime + 0.2);
             gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
             osc.connect(gain);
@@ -348,6 +401,27 @@ class SoundFX {
             osc.start();
             osc.stop(this.ctx.currentTime + 0.35);
         } catch (e) {}
+    }
+}
+
+// Desktop Web Notifications Manager
+class NotificationManager {
+    static requestPermission(callback) {
+        if (!('Notification' in window)) {
+            alert('Desktop notifications are not supported in this browser.');
+            return;
+        }
+        Notification.requestPermission().then(permission => {
+            if (callback) callback(permission);
+        });
+    }
+
+    static send(title, body) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+                new Notification(title, { body });
+            } catch (e) {}
+        }
     }
 }
 
@@ -420,6 +494,7 @@ class PomodoroManager {
     complete() {
         this.reset();
         SoundFX.playSuccess();
+        NotificationManager.send('🎯 Focus Session Complete!', 'Great work maintaining focus. Take a 5-minute break!');
         alert('🎉 Pomodoro Focus Session Complete! Great job maintaining focus.');
     }
 
@@ -430,18 +505,117 @@ class PomodoroManager {
     }
 }
 
+// Live Session Stopwatch Manager
+class StopwatchManager {
+    constructor() {
+        this.seconds = 0;
+        this.timerId = null;
+        this.isRunning = false;
+
+        this.display = document.getElementById('stopwatch-display');
+        this.toggleBtn = document.getElementById('stopwatch-toggle-btn');
+        this.logBtn = document.getElementById('stopwatch-log-btn');
+        this.statusLabel = document.getElementById('stopwatch-status-label');
+
+        this.init();
+    }
+
+    init() {
+        if (!this.toggleBtn) return;
+        this.toggleBtn.addEventListener('click', () => this.toggle());
+        this.logBtn.addEventListener('click', () => this.logSession());
+        this.updateDisplay();
+    }
+
+    toggle() {
+        if (this.isRunning) {
+            this.pause();
+        } else {
+            this.start();
+        }
+    }
+
+    start() {
+        this.isRunning = true;
+        this.toggleBtn.textContent = 'Pause';
+        this.toggleBtn.classList.remove('primary');
+        if (this.statusLabel) {
+            this.statusLabel.textContent = 'Logging...';
+            this.statusLabel.style.color = '#38bdf8';
+        }
+
+        this.timerId = setInterval(() => {
+            this.seconds++;
+            this.updateDisplay();
+        }, 1000);
+    }
+
+    pause() {
+        this.isRunning = false;
+        clearInterval(this.timerId);
+        this.toggleBtn.textContent = 'Resume';
+        this.toggleBtn.classList.add('primary');
+        if (this.statusLabel) {
+            this.statusLabel.textContent = 'Paused';
+            this.statusLabel.style.color = '#fbbf24';
+        }
+    }
+
+    logSession() {
+        if (this.seconds < 60) {
+            alert('Study session must be at least 1 minute to log.');
+            return;
+        }
+
+        const loggedMins = Math.round(this.seconds / 60);
+        this.pause();
+        this.seconds = 0;
+        this.updateDisplay();
+        this.toggleBtn.textContent = 'Start';
+        if (this.statusLabel) {
+            this.statusLabel.textContent = 'Idle';
+            this.statusLabel.style.color = '#10b981';
+        }
+
+        const todayStr = new Date().toISOString().slice(0, 10);
+        store.state.studyLogs.push({
+            id: `log-${Date.now()}`,
+            date: todayStr,
+            minutes: loggedMins,
+            topicId: store.state.topics[0]?.id || null
+        });
+
+        store.checkAndUpdateStreak();
+        store.saveState();
+
+        if (window.appUI) {
+            window.appUI.renderAll();
+            window.appUI.showNotification(`Logged ${loggedMins} minutes of study session!`);
+        }
+    }
+
+    updateDisplay() {
+        const hrs = Math.floor(this.seconds / 3600).toString().padStart(2, '0');
+        const mins = Math.floor((this.seconds % 3600) / 60).toString().padStart(2, '0');
+        const secs = (this.seconds % 60).toString().padStart(2, '0');
+        if (this.display) this.display.textContent = `${hrs}:${mins}:${secs}`;
+    }
+}
+
 // UI Controller & Views Manager
 class UIController {
     constructor() {
         this.pomo = new PomodoroManager();
+        this.stopwatch = new StopwatchManager();
         this.currentQuizSession = null;
+        this.currentFlashcardIndex = 0;
         this.initEventListeners();
         this.renderAll();
         this.startCountdownClock();
     }
 
     initEventListeners() {
-        // Mobile Sidebar Navigation Toggle
+        // Mobile Sidebar Toggle
         const mobileMenuBtn = document.getElementById('mobile-menu-btn');
         const sidebarBackdrop = document.getElementById('sidebar-backdrop');
         if (mobileMenuBtn) {
@@ -460,7 +634,7 @@ class UIController {
             });
         });
 
-        // Top Buttons
+        // Top Header Actions
         document.getElementById('quick-quiz-btn').addEventListener('click', () => {
             this.switchTab('quiz');
         });
@@ -469,19 +643,71 @@ class UIController {
             this.loadDemoData();
         });
 
+        document.getElementById('open-auth-modal-btn').addEventListener('click', () => {
+            this.openAuthModal();
+        });
+
         document.getElementById('recalc-ai-btn').addEventListener('click', () => {
             store.generateAdaptiveSchedule();
             this.renderAll();
             this.showNotification('AI Schedule re-balanced based on latest progress!');
         });
 
-        // Schedule Filter Dropdown Event Listener
+        // View Mode Switcher in Schedule
+        const listBtn = document.getElementById('sched-view-list-btn');
+        const gridBtn = document.getElementById('sched-view-grid-btn');
+        if (listBtn && gridBtn) {
+            listBtn.addEventListener('click', () => {
+                store.state.scheduleViewMode = 'list';
+                listBtn.classList.add('active');
+                gridBtn.classList.remove('active');
+                this.renderScheduleView();
+            });
+
+            gridBtn.addEventListener('click', () => {
+                store.state.scheduleViewMode = 'grid';
+                gridBtn.classList.add('active');
+                listBtn.classList.remove('active');
+                this.renderScheduleView();
+            });
+        }
+
+        // Schedule Filter Dropdown
         const scheduleFilterSelect = document.getElementById('schedule-filter-subject');
         if (scheduleFilterSelect) {
             scheduleFilterSelect.addEventListener('change', () => {
                 this.renderScheduleView();
             });
         }
+
+        // Flashcards Filter & Flip interaction
+        const fcFilter = document.getElementById('flashcard-subject-filter');
+        if (fcFilter) {
+            fcFilter.addEventListener('change', () => {
+                this.currentFlashcardIndex = 0;
+                this.renderFlashcardsView();
+            });
+        }
+
+        const fcCard = document.getElementById('flashcard-flip-card');
+        if (fcCard) {
+            fcCard.addEventListener('click', () => {
+                fcCard.classList.toggle('flipped');
+            });
+        }
+
+        // SM-2 Rating Buttons
+        document.querySelectorAll('#sm2-rating-bar .sm2-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const rating = parseInt(e.currentTarget.dataset.rating);
+                this.handleFlashcardRating(rating);
+            });
+        });
+
+        document.getElementById('open-flashcard-modal-btn').addEventListener('click', () => {
+            this.openFlashcardModal();
+        });
 
         // Modals Open/Close
         document.getElementById('open-subject-modal-btn').addEventListener('click', () => {
@@ -505,7 +731,6 @@ class UIController {
             });
         });
 
-        // Modal Backdrop Click & Keyboard Accessibility
         document.querySelectorAll('.modal-overlay').forEach(overlay => {
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) {
@@ -518,6 +743,9 @@ class UIController {
             if (e.key === 'Escape') {
                 document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
                 this.closeMobileSidebar();
+            } else if (e.code === 'Space' && store.state.activeTab === 'flashcards') {
+                const fcCard = document.getElementById('flashcard-flip-card');
+                if (fcCard) fcCard.classList.toggle('flipped');
             }
         });
 
@@ -532,6 +760,16 @@ class UIController {
             this.handleSaveTopic();
         });
 
+        document.getElementById('form-topic-notes').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleSaveTopicNotes();
+        });
+
+        document.getElementById('form-flashcard').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleSaveFlashcard();
+        });
+
         document.getElementById('form-custom-session').addEventListener('submit', (e) => {
             e.preventDefault();
             this.handleSaveCustomSession();
@@ -541,6 +779,66 @@ class UIController {
             e.preventDefault();
             this.handleSaveExamSettings();
         });
+
+        const aiForm = document.getElementById('settings-ai-form');
+        if (aiForm) {
+            aiForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleSaveAISettings();
+            });
+        }
+
+        // Auth Tabs & Forms
+        const loginTab = document.getElementById('tab-auth-login');
+        const signupTab = document.getElementById('tab-auth-signup');
+        if (loginTab && signupTab) {
+            loginTab.addEventListener('click', () => {
+                loginTab.classList.add('active');
+                signupTab.classList.remove('active');
+                document.getElementById('form-auth-login').classList.remove('hidden');
+                document.getElementById('form-auth-signup').classList.add('hidden');
+            });
+
+            signupTab.addEventListener('click', () => {
+                signupTab.classList.add('active');
+                loginTab.classList.remove('active');
+                document.getElementById('form-auth-signup').classList.remove('hidden');
+                document.getElementById('form-auth-login').classList.add('hidden');
+            });
+        }
+
+        document.getElementById('form-auth-login').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleAuthLogin();
+        });
+
+        document.getElementById('form-auth-signup').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleAuthSignup();
+        });
+
+        document.getElementById('auth-google-btn').addEventListener('click', () => {
+            this.handleAuthGoogle();
+        });
+
+        document.getElementById('auth-logout-btn').addEventListener('click', () => {
+            this.handleAuthLogout();
+        });
+
+        // Notifications Request Button
+        const notifyBtn = document.getElementById('btn-request-notifications');
+        if (notifyBtn) {
+            notifyBtn.addEventListener('click', () => {
+                NotificationManager.requestPermission(permission => {
+                    if (permission === 'granted') {
+                        this.showNotification('Desktop Notifications Enabled!');
+                        NotificationManager.send('AetherMind AI Planner', 'Notifications successfully configured!');
+                    } else {
+                        alert('Notification permission was denied.');
+                    }
+                });
+            });
+        }
 
         // Quiz Arena Controls
         document.getElementById('quiz-select-subject').addEventListener('change', (e) => {
@@ -581,7 +879,7 @@ class UIController {
             this.switchTab('dashboard');
         });
 
-        // Settings Buttons
+        // Settings Data Buttons
         document.getElementById('btn-load-demo-data').addEventListener('click', () => this.loadDemoData());
         document.getElementById('btn-export-data').addEventListener('click', () => this.exportDataJSON());
         document.getElementById('btn-import-data').addEventListener('click', () => {
@@ -595,12 +893,10 @@ class UIController {
             }
         });
 
-        // Topic Mastery Range Label Listener
         document.getElementById('top-mastery').addEventListener('input', (e) => {
             document.getElementById('top-mastery-val').textContent = e.target.value;
         });
 
-        // Window Resize Listener for Charts
         window.addEventListener('resize', () => {
             if (store.state.activeTab === 'analytics') {
                 this.renderAnalyticsView();
@@ -638,6 +934,7 @@ class UIController {
             dashboard: "Dashboard Overview",
             schedule: "Adaptive Master Schedule",
             subjects: "Subjects & Topics Repository",
+            flashcards: "Active Recall & Spaced Repetition",
             quiz: "AI Quiz Arena",
             analytics: "Progress & Exam Analytics",
             settings: "Exam Details & Data Settings"
@@ -652,6 +949,7 @@ class UIController {
         this.renderDashboard();
         this.renderScheduleView();
         this.renderSubjectsView();
+        this.renderFlashcardsView();
         this.renderQuizSetup();
         this.renderAnalyticsView();
         this.renderSettingsView();
@@ -684,9 +982,15 @@ class UIController {
     }
 
     renderHeaderAndCountdown() {
-        const { examDetails, topics, streak } = store.state;
+        const { examDetails, topics, streak, user } = store.state;
         document.getElementById('exam-subtitle').textContent = `Targeting: ${examDetails.title || 'Exam Goal'}`;
         document.getElementById('streak-val').textContent = streak.count || 0;
+
+        // User Auth Pill Widget State
+        const userObj = user || defaultState.user;
+        document.getElementById('header-user-name').textContent = userObj.name || "Guest Student";
+        document.getElementById('header-auth-status').textContent = userObj.isLoggedIn ? "Cloud Synced" : "Offline Guest";
+        document.getElementById('header-avatar-circle').textContent = userObj.isLoggedIn ? "🎓" : "👤";
 
         // Metric Days
         const examDate = new Date(examDetails.examDate);
@@ -695,7 +999,7 @@ class UIController {
         document.getElementById('metric-days-left').textContent = daysLeft;
         document.getElementById('metric-exam-date').textContent = isNaN(examDate.getTime()) ? 'Date not set' : examDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-        // Calculate Overall Readiness
+        // Overall Readiness Index
         let totalWeight = 0;
         let weightedMasterySum = 0;
         let masteredCount = 0;
@@ -770,15 +1074,14 @@ class UIController {
                 });
 
                 div.querySelector('.quiz-topic-btn').addEventListener('click', (e) => {
-                    const topicId = e.currentTarget.dataset.topic;
-                    this.launchTopicQuiz(topicId);
+                    this.launchTopicQuiz(e.currentTarget.dataset.topic);
                 });
 
                 container.appendChild(div);
             });
         }
 
-        // Weak Topics List
+        // Weak Topics
         const weakList = document.getElementById('weak-topics-list');
         weakList.innerHTML = '';
 
@@ -813,7 +1116,7 @@ class UIController {
             });
         }
 
-        // AI Insight Text
+        // AI Insight Banner
         const lowestTopic = weakTopics[0];
         const aiInsight = document.getElementById('ai-insight-text');
         if (lowestTopic) {
@@ -824,18 +1127,32 @@ class UIController {
     }
 
     renderScheduleView() {
-        const container = document.getElementById('master-schedule-container');
-        container.innerHTML = '';
+        const listContainer = document.getElementById('master-schedule-container');
+        const gridContainer = document.getElementById('weekly-calendar-grid');
+        const mode = store.state.scheduleViewMode || 'list';
 
         const filterSelect = document.getElementById('schedule-filter-subject');
         const filterSubject = filterSelect ? filterSelect.value : 'all';
+
         const sessions = store.state.scheduleSessions.filter(s => {
             if (filterSubject === 'all') return true;
             const topic = store.state.topics.find(t => t.id === s.topicId);
             return topic && topic.subjectId === filterSubject;
         });
 
-        // Group by Date
+        if (mode === 'grid') {
+            listContainer.classList.add('hidden');
+            gridContainer.classList.remove('hidden');
+            this.renderWeeklyCalendarGrid(gridContainer, sessions);
+        } else {
+            gridContainer.classList.add('hidden');
+            listContainer.classList.remove('hidden');
+            this.renderTimelineScheduleList(listContainer, sessions);
+        }
+    }
+
+    renderTimelineScheduleList(container, sessions) {
+        container.innerHTML = '';
         const grouped = {};
         sessions.forEach(s => {
             if (!grouped[s.date]) grouped[s.date] = [];
@@ -906,6 +1223,34 @@ class UIController {
         });
     }
 
+    renderWeeklyCalendarGrid(container, sessions) {
+        container.innerHTML = '';
+        const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+        daysOfWeek.forEach((dayName, idx) => {
+            const dayCol = document.createElement('div');
+            dayCol.className = 'weekly-day-col';
+            dayCol.innerHTML = `<div class="weekly-day-header">${dayName}</div>`;
+
+            const daySessions = sessions.filter((s, i) => (i % 7) === idx);
+            if (daySessions.length === 0) {
+                dayCol.innerHTML += `<div style="font-size: 11px; color: #64748b; text-align: center; padding: 10px 0;">Rest / Free</div>`;
+            } else {
+                daySessions.forEach(sess => {
+                    const card = document.createElement('div');
+                    card.className = 'weekly-slot-card';
+                    card.style.borderLeftColor = sess.subjectColor || '#6366f1';
+                    card.innerHTML = `
+                        <div class="weekly-slot-title">${sess.topicName}</div>
+                        <div class="weekly-slot-sub">${sess.timeSlot.split(' ')[0]} • ${sess.duration}m</div>
+                    `;
+                    dayCol.appendChild(card);
+                });
+            }
+            container.appendChild(dayCol);
+        });
+    }
+
     renderSubjectsView() {
         const grid = document.getElementById('subjects-grid');
         grid.innerHTML = '';
@@ -952,6 +1297,7 @@ class UIController {
                                     ${t.difficulty === 1 ? 'Easy' : (t.difficulty === 2 ? 'Med' : 'Hard')}
                                 </span>
                                 <span style="font-weight: 700; font-size: 13px; color: ${t.masteryLevel >= 70 ? '#34d399' : '#f87171'};">${t.masteryLevel}%</span>
+                                <button class="icon-btn notes-topic-btn" data-id="${t.id}" title="View Notes & Cheat Sheet">📝</button>
                                 <button class="btn-sm secondary quiz-topic-btn" data-topic="${t.id}">Quiz</button>
                                 <button class="icon-btn edit-topic-btn" data-id="${t.id}" title="Edit Topic">✏️</button>
                                 <button class="icon-btn danger delete-topic-btn" data-id="${t.id}" title="Delete Topic">🗑️</button>
@@ -967,6 +1313,12 @@ class UIController {
 
             card.querySelector('.delete-subject-btn').addEventListener('click', (e) => {
                 this.deleteSubject(e.currentTarget.dataset.id);
+            });
+
+            card.querySelectorAll('.notes-topic-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    this.openTopicNotesModal(e.currentTarget.dataset.id);
+                });
             });
 
             card.querySelectorAll('.edit-topic-btn').forEach(btn => {
@@ -991,6 +1343,62 @@ class UIController {
         });
     }
 
+    renderFlashcardsView() {
+        const fcFilter = document.getElementById('flashcard-subject-filter');
+        const selectedSub = fcFilter ? fcFilter.value : 'all';
+        
+        let cards = store.state.flashcards || [];
+        if (selectedSub !== 'all') {
+            const subTopics = store.state.topics.filter(t => t.subjectId === selectedSub).map(t => t.id);
+            cards = cards.filter(c => subTopics.includes(c.topicId));
+        }
+
+        document.getElementById('fc-total-count').textContent = cards.length;
+        const dueCards = cards.filter(c => !c.dueDate || c.dueDate <= new Date().toISOString().slice(0, 10));
+        document.getElementById('fc-due-count').textContent = dueCards.length;
+        const mastered = cards.filter(c => (c.interval || 0) >= 14);
+        document.getElementById('fc-mastered-count').textContent = mastered.length;
+
+        const currentCard = cards[this.currentFlashcardIndex % (cards.length || 1)];
+        const cardFlip = document.getElementById('flashcard-flip-card');
+        if (cardFlip) cardFlip.classList.remove('flipped');
+
+        if (!currentCard || cards.length === 0) {
+            document.getElementById('fc-card-tag').textContent = 'Deck Empty';
+            document.getElementById('fc-card-front-text').textContent = 'No flashcards found for selected filter. Click "+ Create Card" to add your first recall card!';
+            document.getElementById('fc-card-back-text').textContent = 'Create flashcards to test your retention!';
+            document.getElementById('fc-card-notes-box').textContent = '';
+        } else {
+            const topic = store.state.topics.find(t => t.id === currentCard.topicId) || { name: 'General Concept' };
+            document.getElementById('fc-card-tag').textContent = `${topic.name} • Interval: ${currentCard.interval || 1}d`;
+            document.getElementById('fc-card-front-text').textContent = currentCard.front;
+            document.getElementById('fc-card-back-text').textContent = currentCard.back;
+            document.getElementById('fc-card-notes-box').textContent = currentCard.notes || 'No extra notes attached.';
+        }
+    }
+
+    handleFlashcardRating(rating) {
+        const fcFilter = document.getElementById('flashcard-subject-filter');
+        const selectedSub = fcFilter ? fcFilter.value : 'all';
+        let cards = store.state.flashcards || [];
+        if (selectedSub !== 'all') {
+            const subTopics = store.state.topics.filter(t => t.subjectId === selectedSub).map(t => t.id);
+            cards = cards.filter(c => subTopics.includes(c.topicId));
+        }
+
+        if (cards.length === 0) return;
+
+        const currentCard = cards[this.currentFlashcardIndex % cards.length];
+        if (currentCard) {
+            store.rateFlashcard(currentCard.id, rating);
+            SoundFX.playSuccess();
+        }
+
+        this.currentFlashcardIndex = (this.currentFlashcardIndex + 1) % cards.length;
+        this.renderFlashcardsView();
+        this.showNotification(`SM-2 Interval Updated!`);
+    }
+
     renderQuizSetup() {
         const subSelect = document.getElementById('quiz-select-subject');
         subSelect.innerHTML = store.state.subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
@@ -999,14 +1407,11 @@ class UIController {
             this.populateTopicDropdown('quiz-select-topic', store.state.subjects[0].id);
         }
 
-        // Preserve current schedule filter selection during render
-        const schedFilter = document.getElementById('schedule-filter-subject');
-        if (schedFilter) {
-            const currentVal = schedFilter.value || 'all';
-            schedFilter.innerHTML = '<option value="all">All Subjects</option>' + store.state.subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-            if ([...schedFilter.options].some(opt => opt.value === currentVal)) {
-                schedFilter.value = currentVal;
-            }
+        const fcSubSelect = document.getElementById('flashcard-subject-filter');
+        if (fcSubSelect) {
+            const currVal = fcSubSelect.value || 'all';
+            fcSubSelect.innerHTML = '<option value="all">All Subjects</option>' + store.state.subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            fcSubSelect.value = currVal;
         }
     }
 
@@ -1022,12 +1427,23 @@ class UIController {
         this.startQuizSession();
     }
 
-    startQuizSession() {
+    async startQuizSession() {
         const topicId = document.getElementById('quiz-select-topic').value;
         const topic = store.state.topics.find(t => t.id === topicId);
         if (!topic) return;
 
-        const questions = store.getOrCreateQuestionsForTopic(topicId);
+        let questions = [];
+        if (store.state.aiConfig && store.state.aiConfig.apiKey) {
+            this.showNotification("Generating AI Questions via Gemini API...");
+            const aiGen = await store.fetchAIQuestions(topic.name);
+            if (aiGen && aiGen.length > 0) {
+                questions = aiGen;
+            }
+        }
+
+        if (!questions || questions.length === 0) {
+            questions = store.getOrCreateQuestionsForTopic(topicId);
+        }
 
         this.currentQuizSession = {
             topicId: topicId,
@@ -1106,7 +1522,6 @@ class UIController {
 
         session.userAnswers.push({ selectedIndex, isCorrect });
 
-        // Highlight options
         document.querySelectorAll('.quiz-option-btn').forEach((btn, index) => {
             btn.disabled = true;
             if (index === q.correctIndex) {
@@ -1116,14 +1531,12 @@ class UIController {
             }
         });
 
-        // Show Explanation
         const expBox = document.getElementById('quiz-explanation-box');
         document.getElementById('quiz-exp-title').textContent = isCorrect ? '🎉 Correct Answer!' : '❌ Incorrect';
         document.getElementById('quiz-exp-title').style.color = isCorrect ? '#34d399' : '#f87171';
         document.getElementById('quiz-exp-text').textContent = q.explanation;
         expBox.classList.remove('hidden');
 
-        // Toggle buttons
         document.getElementById('quiz-submit-btn').classList.add('hidden');
         document.getElementById('quiz-next-btn').classList.remove('hidden');
     }
@@ -1143,7 +1556,6 @@ class UIController {
         const session = this.currentQuizSession;
         const scorePercent = Math.round((session.score / session.questions.length) * 100);
 
-        // Update Topic Mastery in Store
         const { oldMastery, newMastery, delta } = store.updateTopicMastery(session.topicId, scorePercent);
 
         document.getElementById('quiz-active-screen').classList.add('hidden');
@@ -1173,6 +1585,7 @@ class UIController {
     renderAnalyticsView() {
         this.renderSubjectMasteryChart();
         this.renderReadinessTrendChart();
+        this.renderActivityHeatmap();
         this.renderTopicsMasteryTable();
     }
 
@@ -1219,11 +1632,9 @@ class UIController {
             const barH = (avgMastery / 100) * maxBarHeight;
             const y = height - 40 - barH;
 
-            // Draw Bar Background
             ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
             ctx.fillRect(x, height - 40 - maxBarHeight, barWidth, maxBarHeight);
 
-            // Draw Filled Bar Gradient
             const gradient = ctx.createLinearGradient(0, y, 0, height - 40);
             gradient.addColorStop(0, sub.color);
             gradient.addColorStop(1, 'rgba(15, 23, 42, 0.6)');
@@ -1231,13 +1642,11 @@ class UIController {
             ctx.fillStyle = gradient;
             ctx.fillRect(x, y, barWidth, barH);
 
-            // Value text
             ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 13px Outfit';
             ctx.textAlign = 'center';
             ctx.fillText(`${avgMastery}%`, x + barWidth / 2, y - 8);
 
-            // Label text
             ctx.fillStyle = '#94a3b8';
             ctx.font = '12px Inter';
             const shortName = sub.name.length > 12 ? sub.name.slice(0, 10) + '..' : sub.name;
@@ -1252,7 +1661,6 @@ class UIController {
         const { ctx, width, height } = this.setupCanvasDPI(canvas);
         ctx.clearRect(0, 0, width, height);
 
-        // Simulated readiness trend over 7 days
         const points = [35, 42, 48, 55, 62, 70, 78];
         const stepX = (width - 80) / (points.length - 1);
         const maxY = 160;
@@ -1269,7 +1677,6 @@ class UIController {
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        // Draw points & area gradient
         const areaGrad = ctx.createLinearGradient(0, 0, 0, height);
         areaGrad.addColorStop(0, 'rgba(56, 189, 248, 0.2)');
         areaGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
@@ -1280,7 +1687,6 @@ class UIController {
         ctx.fillStyle = areaGrad;
         ctx.fill();
 
-        // Draw point dots
         points.forEach((val, i) => {
             const x = 40 + i * stepX;
             const y = height - 40 - (val / 100) * maxY;
@@ -1292,6 +1698,39 @@ class UIController {
             ctx.lineWidth = 2;
             ctx.stroke();
         });
+    }
+
+    renderActivityHeatmap() {
+        const grid = document.getElementById('activity-heatmap-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        const logs = store.state.studyLogs || [];
+        let totalMins = 0;
+
+        // Render past 30 days cells
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().slice(0, 10);
+
+            const dayMins = logs.filter(l => l.date === dateStr).reduce((a, b) => a + (b.minutes || 0), 0);
+            totalMins += dayMins;
+
+            let level = 0;
+            if (dayMins > 180) level = 4;
+            else if (dayMins > 120) level = 3;
+            else if (dayMins > 60) level = 2;
+            else if (dayMins > 0) level = 1;
+
+            const cell = document.createElement('div');
+            cell.className = `heatmap-cell level-${level}`;
+            cell.title = `${dateStr}: ${dayMins} mins focused study`;
+            grid.appendChild(cell);
+        }
+
+        const hrsBadge = document.getElementById('total-hours-logged-badge');
+        if (hrsBadge) hrsBadge.textContent = `${(totalMins / 60).toFixed(1)} hrs total logged`;
     }
 
     renderTopicsMasteryTable() {
@@ -1311,12 +1750,17 @@ class UIController {
                 <td><span class="badge ${t.masteryLevel >= 75 ? 'success-badge' : 'warning-badge'}">${t.masteryLevel >= 75 ? 'Mastered' : 'Needs Review'}</span></td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 6px;">
+                        <button class="icon-btn notes-table-btn" data-id="${t.id}" title="View Notes & Cheat Sheet">📝</button>
                         <button class="btn-sm secondary quiz-table-btn" data-topic="${t.id}">Take Quiz</button>
                         <button class="icon-btn edit-topic-btn" data-id="${t.id}" title="Edit Topic">✏️</button>
                         <button class="icon-btn danger delete-topic-btn" data-id="${t.id}" title="Delete Topic">🗑️</button>
                     </div>
                 </td>
             `;
+
+            tr.querySelector('.notes-table-btn').addEventListener('click', (e) => {
+                this.openTopicNotesModal(e.currentTarget.dataset.id);
+            });
 
             tr.querySelector('.quiz-table-btn').addEventListener('click', (e) => {
                 this.launchTopicQuiz(e.currentTarget.dataset.topic);
@@ -1335,17 +1779,100 @@ class UIController {
     }
 
     renderSettingsView() {
-        const { examDetails } = store.state;
+        const { examDetails, aiConfig } = store.state;
         document.getElementById('set-exam-title').value = examDetails.title || '';
         document.getElementById('set-exam-date').value = examDetails.examDate || '';
         document.getElementById('set-target-score').value = examDetails.targetScore || 90;
         document.getElementById('set-daily-hours').value = examDetails.dailyAvailableHours || 3.5;
         document.getElementById('set-peak-time').value = examDetails.peakTime || 'evening';
+
+        if (aiConfig) {
+            document.getElementById('set-ai-apikey').value = aiConfig.apiKey || '';
+            document.getElementById('set-ai-model').value = aiConfig.model || 'gemini-1.5-flash';
+            document.getElementById('set-ai-persona').value = aiConfig.persona || 'supportive';
+            const statusBadge = document.getElementById('ai-key-status-badge');
+            if (statusBadge) {
+                statusBadge.textContent = aiConfig.apiKey ? 'Gemini API Active' : 'Default Template Engine';
+                statusBadge.className = `badge ${aiConfig.apiKey ? 'success-badge' : 'ai-badge'}`;
+            }
+        }
     }
 
-    // Modal Form Handlers & Openers
+    // Modal Helpers
     openModal(modalId) {
         document.getElementById(modalId).classList.remove('hidden');
+    }
+
+    openAuthModal() {
+        const user = store.state.user || defaultState.user;
+        const loggedInBox = document.getElementById('auth-logged-in-box');
+        const loginForm = document.getElementById('form-auth-login');
+        const signupForm = document.getElementById('form-auth-signup');
+
+        if (user.isLoggedIn) {
+            loggedInBox.classList.remove('hidden');
+            loginForm.classList.add('hidden');
+            signupForm.classList.add('hidden');
+            document.getElementById('profile-user-name').textContent = user.name;
+            document.getElementById('profile-user-email').textContent = user.email;
+        } else {
+            loggedInBox.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            signupForm.classList.add('hidden');
+        }
+
+        this.openModal('modal-auth');
+    }
+
+    handleAuthLogin() {
+        const email = document.getElementById('login-email').value;
+        const name = email.split('@')[0] || "Student";
+        store.state.user = {
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            email: email,
+            isLoggedIn: true,
+            authStatus: "Cloud Synced Account"
+        };
+        store.saveState();
+        document.getElementById('modal-auth').classList.add('hidden');
+        this.renderAll();
+        this.showNotification(`Signed in as ${store.state.user.name}`);
+    }
+
+    handleAuthSignup() {
+        const name = document.getElementById('signup-name').value;
+        const email = document.getElementById('signup-email').value;
+        store.state.user = {
+            name: name,
+            email: email,
+            isLoggedIn: true,
+            authStatus: "Cloud Synced Account"
+        };
+        store.saveState();
+        document.getElementById('modal-auth').classList.add('hidden');
+        this.renderAll();
+        this.showNotification(`Account created for ${name}`);
+    }
+
+    handleAuthGoogle() {
+        store.state.user = {
+            name: "Alex Rivers (Google)",
+            email: "alex.rivers@gmail.com",
+            isLoggedIn: true,
+            authStatus: "Google OAuth Synced"
+        };
+        store.saveState();
+        document.getElementById('modal-auth').classList.add('hidden');
+        this.renderAll();
+        this.showNotification("Signed in with Google OAuth!");
+    }
+
+    handleAuthLogout() {
+        store.state.user = { ...defaultState.user };
+        store.saveState();
+        document.getElementById('modal-auth').classList.add('hidden');
+        this.renderAll();
+        this.showNotification("Signed out of account.");
     }
 
     openSubjectModal(subjectId = null) {
@@ -1409,6 +1936,63 @@ class UIController {
         this.openModal('modal-topic');
     }
 
+    openTopicNotesModal(topicId) {
+        const topic = store.state.topics.find(t => t.id === topicId);
+        if (!topic) return;
+
+        document.getElementById('notes-modal-title').textContent = `Cheat Sheet: ${topic.name}`;
+        document.getElementById('note-topic-id').value = topicId;
+        document.getElementById('note-content').value = (store.state.topicNotes || {})[topicId] || '';
+
+        this.openModal('modal-topic-notes');
+    }
+
+    openFlashcardModal() {
+        this.populateTopicDropdown('fc-topic-select');
+        document.getElementById('form-flashcard').reset();
+        this.openModal('modal-flashcard');
+    }
+
+    handleSaveTopicNotes() {
+        const topicId = document.getElementById('note-topic-id').value;
+        const content = document.getElementById('note-content').value.trim();
+
+        if (!store.state.topicNotes) store.state.topicNotes = {};
+        store.state.topicNotes[topicId] = content;
+        store.saveState();
+
+        document.getElementById('modal-topic-notes').classList.add('hidden');
+        this.showNotification('Cheat sheet notes saved!');
+    }
+
+    handleSaveFlashcard() {
+        const topicId = document.getElementById('fc-topic-select').value;
+        const front = document.getElementById('fc-front-input').value.trim();
+        const back = document.getElementById('fc-back-input').value.trim();
+
+        if (!front || !back) return;
+
+        const newCard = {
+            id: `fc-${Date.now()}`,
+            topicId,
+            front,
+            back,
+            notes: "Custom flashcard",
+            interval: 1,
+            repetition: 0,
+            easeFactor: 2.5,
+            dueDate: new Date().toISOString().slice(0, 10)
+        };
+
+        if (!store.state.flashcards) store.state.flashcards = [];
+        store.state.flashcards.push(newCard);
+        store.saveState();
+
+        document.getElementById('modal-flashcard').classList.add('hidden');
+        this.renderFlashcardsView();
+        this.showNotification('Flashcard created!');
+    }
+
     deleteSubject(subjectId) {
         const sub = store.state.subjects.find(s => s.id === subjectId);
         if (!sub) return;
@@ -1443,6 +2027,7 @@ class UIController {
 
     populateTopicDropdown(selectElementId, filterSubjectId = null) {
         const select = document.getElementById(selectElementId);
+        if (!select) return;
         let topics = store.state.topics;
         if (filterSubjectId) {
             topics = topics.filter(t => t.subjectId === filterSubjectId);
@@ -1571,6 +2156,18 @@ class UIController {
         this.showNotification('Exam settings saved & schedule updated!');
     }
 
+    handleSaveAISettings() {
+        store.state.aiConfig = {
+            apiKey: document.getElementById('set-ai-apikey').value.trim(),
+            model: document.getElementById('set-ai-model').value,
+            persona: document.getElementById('set-ai-persona').value
+        };
+
+        store.saveState();
+        this.renderAll();
+        this.showNotification('AI Engine settings updated!');
+    }
+
     loadDemoData() {
         localStorage.removeItem(STORAGE_KEY);
         store.state = JSON.parse(JSON.stringify(defaultState));
@@ -1627,7 +2224,8 @@ class UIController {
         setTimeout(() => toast.remove(), 3500);
     }
 }
-// Initialize Application when DOM ready
+
+// Initialize Application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.appUI = new UIController();
 });

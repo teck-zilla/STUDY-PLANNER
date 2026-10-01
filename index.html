@@ -36,6 +36,10 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                     <span>Subjects & Topics</span>
                 </button>
+                <button class="nav-item" data-tab="flashcards">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="16" height="14" rx="2"/><path d="M6 20h14a2 2 0 0 0 2-2V8"/></svg>
+                    <span>Flashcards & Recall</span>
+                </button>
                 <button class="nav-item" data-tab="quiz">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44L2.04 15.5a2.5 2.5 0 0 1 0-3L7.04 8A2.5 2.5 0 0 1 9.5 2z"/><circle cx="12" cy="12" r="3"/><path d="M19 12h2"/><path d="M19 6h2"/><path d="M19 18h2"/></svg>
                     <span>AI Quiz Arena</span>
@@ -60,6 +64,18 @@
                     <div class="pomo-controls">
                         <button class="pomo-btn primary" id="pomo-toggle-btn">Start</button>
                         <button class="pomo-btn" id="pomo-reset-btn">Reset</button>
+                    </div>
+                </div>
+
+                <div class="stopwatch-mini" style="margin-top: 10px;">
+                    <div class="pomo-header">
+                        <span class="pomo-title">Stopwatch Logger</span>
+                        <span class="pomo-status" id="stopwatch-status-label">Idle</span>
+                    </div>
+                    <div class="pomo-timer-display" id="stopwatch-display" style="font-size: 20px;">00:00:00</div>
+                    <div class="pomo-controls">
+                        <button class="pomo-btn primary" id="stopwatch-toggle-btn">Start</button>
+                        <button class="pomo-btn" id="stopwatch-log-btn">Log Time</button>
                     </div>
                 </div>
             </div>
@@ -103,6 +119,15 @@
                         <span class="streak-fire">🔥</span>
                         <span class="streak-count" id="streak-val">3</span>
                         <span class="streak-lbl">Day Streak</span>
+                    </div>
+
+                    <!-- User Auth Pill Widget -->
+                    <div class="user-auth-pill" id="open-auth-modal-btn" title="Click to manage account / Sign In">
+                        <span class="user-avatar-circle" id="header-avatar-circle">👤</span>
+                        <div class="user-pill-info">
+                            <span class="user-pill-name" id="header-user-name">Guest Student</span>
+                            <span class="user-pill-status" id="header-auth-status">Offline Guest</span>
+                        </div>
                     </div>
 
                     <!-- Action buttons -->
@@ -226,6 +251,10 @@
                                 <p class="panel-sub">Dynamically re-ordered by AI based on exam proximity and quiz performance.</p>
                             </div>
                             <div class="header-actions">
+                                <div class="view-toggle-btns" style="display: flex; background: rgba(255,255,255,0.05); padding: 3px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                                    <button class="toggle-view-btn active" id="sched-view-list-btn">List View</button>
+                                    <button class="toggle-view-btn" id="sched-view-grid-btn">Weekly Grid</button>
+                                </div>
                                 <select class="styled-select" id="schedule-filter-subject">
                                     <option value="all">All Subjects</option>
                                 </select>
@@ -233,8 +262,13 @@
                             </div>
                         </div>
 
-                        <!-- Schedule Days Container -->
+                        <!-- Schedule Days Container (List View) -->
                         <div class="schedule-days-container" id="master-schedule-container">
+                            <!-- Injected dynamically -->
+                        </div>
+
+                        <!-- Weekly Calendar Grid Container (Grid View) -->
+                        <div class="weekly-calendar-grid hidden" id="weekly-calendar-grid">
                             <!-- Injected dynamically -->
                         </div>
                     </div>
@@ -261,7 +295,77 @@
                     </div>
                 </section>
 
-                <!-- VIEW 4: QUIZ ARENA -->
+                <!-- VIEW 4: FLASHCARDS & RECALL -->
+                <section class="view-panel" id="view-flashcards">
+                    <div class="panel-card max-w-900" style="margin: 0 auto;">
+                        <div class="panel-header">
+                            <div>
+                                <h2>Active Recall & Spaced Repetition (SM-2)</h2>
+                                <p class="panel-sub">Flip flashcards to test your memory. Rate your retrieval difficulty to auto-schedule spaced review intervals.</p>
+                            </div>
+                            <div class="header-actions">
+                                <select class="styled-select" id="flashcard-subject-filter">
+                                    <option value="all">All Subjects</option>
+                                </select>
+                                <button class="btn-primary" id="open-flashcard-modal-btn">+ Create Card</button>
+                            </div>
+                        </div>
+
+                        <!-- Deck Progress Metrics -->
+                        <div class="flashcard-deck-meta mb-24" style="display: flex; gap: 16px; background: rgba(255,255,255,0.03); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+                            <div class="deck-stat" style="font-size: 13px; color: #cbd5e1;"><span class="stat-num" id="fc-due-count" style="font-weight: 700; color: #38bdf8;">0</span> Cards Due</div>
+                            <div class="deck-stat" style="font-size: 13px; color: #cbd5e1;"><span class="stat-num" id="fc-total-count" style="font-weight: 700; color: #ffffff;">0</span> Total Deck</div>
+                            <div class="deck-stat" style="font-size: 13px; color: #cbd5e1;"><span class="stat-num" id="fc-mastered-count" style="font-weight: 700; color: #34d399;">0</span> Mastered Cards</div>
+                        </div>
+
+                        <!-- 3D Flip Card Stage -->
+                        <div class="flashcard-stage">
+                            <div class="flashcard-wrapper" id="flashcard-flip-card">
+                                <div class="flashcard-inner">
+                                    <!-- Front Face -->
+                                    <div class="flashcard-face flashcard-front">
+                                        <div class="fc-badge" id="fc-card-tag">Concept Prompt</div>
+                                        <div class="fc-prompt" id="fc-card-front-text">Click "Load Sample Data" or add custom flashcards to begin review!</div>
+                                        <div class="fc-hint">💡 Click card or press Space to Flip</div>
+                                    </div>
+
+                                    <!-- Back Face -->
+                                    <div class="flashcard-face flashcard-back">
+                                        <div class="fc-badge success-badge" id="fc-card-back-tag">Answer & Explanation</div>
+                                        <div class="fc-answer" id="fc-card-back-text">Answer explanation content will appear here upon flip.</div>
+                                        <div class="fc-notes-box" id="fc-card-notes-box">Key formula reference or takeaways.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SM-2 Rating Controls -->
+                        <div class="sm2-controls-bar mt-24" id="sm2-rating-bar">
+                            <button class="sm2-btn again" data-rating="1">
+                                <span class="rate-emoji">🔴</span>
+                                <span class="rate-lbl">Again</span>
+                                <span class="rate-sub">&lt; 1 day</span>
+                            </button>
+                            <button class="sm2-btn hard" data-rating="2">
+                                <span class="rate-emoji">🟠</span>
+                                <span class="rate-lbl">Hard</span>
+                                <span class="rate-sub">2 days</span>
+                            </button>
+                            <button class="sm2-btn good" data-rating="3">
+                                <span class="rate-emoji">🟢</span>
+                                <span class="rate-lbl">Good</span>
+                                <span class="rate-sub">4 days</span>
+                            </button>
+                            <button class="sm2-btn easy" data-rating="4">
+                                <span class="rate-emoji">🔵</span>
+                                <span class="rate-lbl">Easy</span>
+                                <span class="rate-sub">7+ days</span>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 5: QUIZ ARENA -->
                 <section class="view-panel" id="view-quiz">
                     <!-- Setup Screen -->
                     <div class="quiz-container" id="quiz-setup-screen">
@@ -394,6 +498,22 @@
                         </div>
                     </div>
 
+                    <!-- 30-Day Activity Contribution Heatmap Card -->
+                    <div class="panel-card mt-24">
+                        <div class="panel-header">
+                            <div>
+                                <h2>30-Day Study Activity & Focus Heatmap</h2>
+                                <p class="panel-sub">Daily intensity of completed study blocks and logged sessions.</p>
+                            </div>
+                            <span class="badge success-badge" id="total-hours-logged-badge">0 hrs total</span>
+                        </div>
+                        <div class="heatmap-wrapper mt-16">
+                            <div class="heatmap-grid" id="activity-heatmap-grid">
+                                <!-- Heatmap cells injected dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Topic Master Matrix Table -->
                     <div class="panel-card mt-24">
                         <div class="panel-header">
@@ -424,7 +544,7 @@
                 <!-- VIEW 6: SETTINGS & EXAM CONFIG -->
                 <section class="view-panel" id="view-settings">
                     <div class="settings-grid">
-                        <!-- Form Card -->
+                        <!-- Form Card: Exam Parameters -->
                         <div class="panel-card">
                             <div class="panel-header">
                                 <h2>Exam Parameters & Goals</h2>
@@ -463,14 +583,55 @@
                             </form>
                         </div>
 
-                        <!-- Data Management Card -->
+                        <!-- Card: AI Model & API Key Configuration -->
                         <div class="panel-card">
                             <div class="panel-header">
-                                <h2>Data Management & Web Storage</h2>
+                                <h2>AI Engine & Gemini API Key</h2>
+                                <span class="badge ai-badge" id="ai-key-status-badge">Default Template Engine</span>
                             </div>
-                            <p class="panel-sub mb-20">All your data is saved locally in your web browser. You can export JSON backups or load sample data anytime.</p>
+                            <p class="panel-sub mb-16">Enter a Google Gemini API key to enable dynamic question generation, real-time concept tutoring, and custom explanations.</p>
+                            <form id="settings-ai-form">
+                                <div class="form-group mb-16">
+                                    <label for="set-ai-apikey">Google Gemini API Key</label>
+                                    <input type="password" id="set-ai-apikey" class="styled-input" placeholder="AIzaSy... (Leave blank for fallback generator)">
+                                </div>
+                                <div class="form-grid mb-16">
+                                    <div class="form-group">
+                                        <label for="set-ai-model">Model Selection</label>
+                                        <select id="set-ai-model" class="styled-select">
+                                            <option value="gemini-1.5-flash" selected>Gemini 1.5 Flash (Fast & Recommended)</option>
+                                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Reasoning)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="set-ai-persona">Tutor Persona</label>
+                                        <select id="set-ai-persona" class="styled-select">
+                                            <option value="supportive" selected>Encouraging Mentor</option>
+                                            <option value="strict">Strict Exam Evaluator</option>
+                                            <option value="socratic">Socratic Guidance</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn-primary">Save AI Configuration</button>
+                            </form>
+                        </div>
+
+                        <!-- Notifications & Data Management Card -->
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <h2>Notifications & Data Management</h2>
+                            </div>
+                            <p class="panel-sub mb-20">Configure browser notification alerts and manage local/cloud study data.</p>
 
                             <div class="data-actions-list">
+                                <div class="data-action-item">
+                                    <div>
+                                        <div class="data-title">Desktop Web Notifications</div>
+                                        <div class="data-desc">Receive OS pop-up alerts when Focus Timer completes or study sessions start.</div>
+                                    </div>
+                                    <button class="btn-secondary" id="btn-request-notifications">Enable Notifications</button>
+                                </div>
+
                                 <div class="data-action-item">
                                     <div>
                                         <div class="data-title">Load Sample Demo Data</div>
@@ -637,6 +798,118 @@
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary close-modal-btn">Cancel</button>
                     <button type="submit" class="btn-primary">Add to Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: AUTH / USER PROFILE -->
+    <div class="modal-overlay hidden" id="modal-auth">
+        <div class="modal-card max-w-500">
+            <div class="modal-header">
+                <h3 id="auth-modal-title">Student Account & Cloud Sync</h3>
+                <button class="close-modal-btn">&times;</button>
+            </div>
+            <div class="auth-tabs mb-20" style="display: flex; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+                <button class="auth-tab-btn active" id="tab-auth-login">Sign In</button>
+                <button class="auth-tab-btn" id="tab-auth-signup">Create Account</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="form-auth-login">
+                <div class="form-group mb-16">
+                    <label for="login-email">Email Address</label>
+                    <input type="email" id="login-email" class="styled-input" placeholder="student@university.edu" required>
+                </div>
+                <div class="form-group mb-16">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" class="styled-input" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn-primary w-full mb-12">Sign In to Account</button>
+            </form>
+
+            <!-- Signup Form (Hidden initially) -->
+            <form id="form-auth-signup" class="hidden">
+                <div class="form-group mb-16">
+                    <label for="signup-name">Full Name</label>
+                    <input type="text" id="signup-name" class="styled-input" placeholder="Alex Rivers" required>
+                </div>
+                <div class="form-group mb-16">
+                    <label for="signup-email">Email Address</label>
+                    <input type="email" id="signup-email" class="styled-input" placeholder="student@university.edu" required>
+                </div>
+                <div class="form-group mb-16">
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" class="styled-input" placeholder="At least 6 characters" minlength="6" required>
+                </div>
+                <button type="submit" class="btn-primary w-full mb-12">Create Cloud Account</button>
+            </form>
+
+            <div class="auth-divider" style="text-align: center; color: #64748b; margin: 16px 0; font-size: 12px;">
+                <span>OR</span>
+            </div>
+
+            <button class="btn-secondary w-full mb-12" id="auth-google-btn" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <span>🌐</span> Continue with Google OAuth (Demo)
+            </button>
+
+            <!-- User Logged In Profile View -->
+            <div id="auth-logged-in-box" class="hidden text-center">
+                <div class="avatar-large mb-12" style="font-size: 48px;">🎓</div>
+                <h3 id="profile-user-name">Alex Rivers</h3>
+                <p style="font-size: 13px; color: #94a3b8;" id="profile-user-email">student@university.edu</p>
+                <div class="badge success-badge mt-8 mb-20">Cloud Synchronization Active</div>
+                <button class="btn-danger w-full" id="auth-logout-btn">Sign Out of Account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TOPIC NOTES & CHEAT-SHEET -->
+    <div class="modal-overlay hidden" id="modal-topic-notes">
+        <div class="modal-card max-w-700">
+            <div class="modal-header">
+                <h3 id="notes-modal-title">Topic Notes & Formula Cheat Sheet</h3>
+                <button class="close-modal-btn">&times;</button>
+            </div>
+            <form id="form-topic-notes">
+                <input type="hidden" id="note-topic-id">
+                <div class="form-group mb-16">
+                    <label for="note-content">Formulas, Definitions & Key Takeaways</label>
+                    <textarea id="note-content" class="styled-textarea" rows="10" placeholder="e.g. Time complexity: O(N log N). Key theorem: Av = λv..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary close-modal-btn">Close</button>
+                    <button type="submit" class="btn-primary">Save Cheat Sheet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD / EDIT FLASHCARD -->
+    <div class="modal-overlay hidden" id="modal-flashcard">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Create New Flashcard</h3>
+                <button class="close-modal-btn">&times;</button>
+            </div>
+            <form id="form-flashcard">
+                <div class="form-group mb-16">
+                    <label for="fc-topic-select">Topic</label>
+                    <select id="fc-topic-select" class="styled-select" required>
+                        <!-- Injected -->
+                    </select>
+                </div>
+                <div class="form-group mb-16">
+                    <label for="fc-front-input">Front (Question / Concept)</label>
+                    <textarea id="fc-front-input" class="styled-textarea" rows="3" placeholder="e.g. What is the derivative of sin(x)?" required></textarea>
+                </div>
+                <div class="form-group mb-16">
+                    <label for="fc-back-input">Back (Answer & Explanation)</label>
+                    <textarea id="fc-back-input" class="styled-textarea" rows="3" placeholder="e.g. cos(x). Derivative measures instantaneous rate of change." required></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary close-modal-btn">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Flashcard</button>
                 </div>
             </form>
         </div>

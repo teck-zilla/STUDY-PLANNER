@@ -1312,3 +1312,318 @@ h1, h2, h3, h4, h5, h6 {
     .metrics-grid { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: 1fr; }
 }
+
+/* User Auth Pill Widget in Top Header */
+.user-auth-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.user-auth-pill:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.user-avatar-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.user-pill-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-pill-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+    line-height: 1.2;
+}
+
+.user-pill-status {
+    font-size: 10px;
+    color: #38bdf8;
+}
+
+/* Auth Modal Tabs & Elements */
+.auth-tab-btn {
+    flex: 1;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.auth-tab-btn.active {
+    color: #38bdf8;
+    border-bottom-color: #38bdf8;
+}
+
+/* Textarea styling */
+.styled-textarea {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 12px;
+    color: #ffffff;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.styled-textarea:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* View Switcher Toggle Buttons */
+.toggle-view-btn {
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.toggle-view-btn.active {
+    background: #6366f1;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+}
+
+/* Weekly Calendar Grid Layout */
+.weekly-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+    overflow-x: auto;
+}
+
+.weekly-day-col {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px;
+    min-width: 130px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.weekly-day-header {
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #38bdf8;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 6px;
+}
+
+.weekly-slot-card {
+    background: rgba(30, 41, 59, 0.7);
+    border-left: 3px solid #6366f1;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: transform 0.2s ease;
+}
+
+.weekly-slot-card:hover {
+    transform: translateY(-2px);
+}
+
+.weekly-slot-title {
+    font-weight: 600;
+    color: #ffffff;
+    line-height: 1.2;
+}
+
+.weekly-slot-sub {
+    font-size: 10px;
+    color: #94a3b8;
+}
+
+/* Flashcards 3D Flip Stage */
+.flashcard-stage {
+    perspective: 1000px;
+    margin: 20px 0;
+}
+
+.flashcard-wrapper {
+    width: 100%;
+    min-height: 280px;
+    cursor: pointer;
+}
+
+.flashcard-inner {
+    position: relative;
+    width: 100%;
+    min-height: 280px;
+    text-align: center;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+}
+
+.flashcard-wrapper.flipped .flashcard-inner {
+    transform: rotateY(180deg);
+}
+
+.flashcard-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    border-radius: 16px;
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+.flashcard-back {
+    transform: rotateY(180deg);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.fc-badge {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+.fc-prompt {
+    font-family: 'Outfit', sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: #ffffff;
+    line-height: 1.4;
+    margin: 16px 0;
+}
+
+.fc-answer {
+    font-size: 16px;
+    color: #f8fafc;
+    line-height: 1.5;
+    margin: 12px 0;
+}
+
+.fc-hint {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.fc-notes-box {
+    font-size: 12px;
+    color: #cbd5e1;
+    background: rgba(255,255,255,0.05);
+    padding: 8px 14px;
+    border-radius: 8px;
+    max-width: 90%;
+}
+
+/* SM-2 Spaced Repetition Buttons */
+.sm2-controls-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.sm2-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(30, 41, 59, 0.6);
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sm2-btn:hover {
+    transform: translateY(-2px);
+}
+
+.sm2-btn.again:hover { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); }
+.sm2-btn.hard:hover { background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); }
+.sm2-btn.good:hover { background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); }
+.sm2-btn.easy:hover { background: rgba(6, 182, 212, 0.2); border-color: rgba(6, 182, 212, 0.4); }
+
+.rate-emoji { font-size: 18px; margin-bottom: 2px; }
+.rate-lbl { font-weight: 700; font-size: 14px; }
+.rate-sub { font-size: 11px; color: #94a3b8; }
+
+/* 30-Day Activity Heatmap */
+.heatmap-wrapper {
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+.heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(15, 1fr);
+    gap: 8px;
+}
+
+.heatmap-cell {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: transform 0.2s ease;
+    cursor: pointer;
+}
+
+.heatmap-cell:hover {
+    transform: scale(1.15);
+}
+
+.heatmap-cell.level-1 { background: rgba(99, 102, 241, 0.25); border-color: rgba(99, 102, 241, 0.4); }
+.heatmap-cell.level-2 { background: rgba(99, 102, 241, 0.5); border-color: rgba(99, 102, 241, 0.7); }
+.heatmap-cell.level-3 { background: rgba(6, 182, 212, 0.75); border-color: rgba(6, 182, 212, 0.9); }
+.heatmap-cell.level-4 { background: #34d399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.5); }
+
