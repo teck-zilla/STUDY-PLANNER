@@ -38,6 +38,61 @@
 
 ---
 
+## 🔐 Authentication Protocol & Implementation Roadmap (FR-01)
+
+The authentication system is designed around minimal PII collection, passwordless security, and strict data isolation per [STUDY-PLANNER_PRD_revised.md](STUDY-PLANNER_PRD_revised.md) (FR-01, NFR-04, NFR-06) and [AGENTS.md](AGENTS.md).
+
+### Core Protocol Requirements
+- **Primary Method**: One-time email magic link (passwordless, secure, ephemeral token).
+- **Secondary Method**: Google OAuth sign-in (PRD Assumption A10: provides an immediate fallback to prevent lockout if email delivery fails or is delayed).
+- **Privacy Minimization (NFR-06)**: Email is the **only personal detail collected**. No names, passwords, phone numbers, or dates of birth.
+- **Mandatory Gates (FR-01)**:
+  - Age confirmation: *"I am 18 or over"* checkbox (submitting without this stops with a plain message).
+  - AI data consent: Consent checkbox agreeing that note text is sent to the named AI provider (Gemini free tier) to generate cards and questions.
+- **Rate-Limiting & UX**: 60-second cooldown on magic link resends; explicit spam checking guidance; 15-minute token expiry with a *"send a new link"* action.
+- **Data Scoping (NFR-04)**: Every student session and database query strictly filters by `studentId`.
+
+### Step-by-Step Implementation Procedure
+
+1. **Prerequisites & Tooling Decisions (Human Gate)**
+   - Record approved **Login Library** in `.agent/rules/decisions.md` (e.g., Auth.js / NextAuth with Prisma adapter [VERIFY]).
+   - Record approved **Email Provider** in `.agent/rules/decisions.md` (e.g., Resend free tier [VERIFY]).
+   - Register environment variables in `.agent/rules/env.md` (`AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, email credentials).
+
+2. **Database Schema & Student Model (Prisma)**
+   - Model the `Student` entity holding only `id`, `email`, default study caps (weekday 60m, weekend 120m), quiet hours (`22:00`–`08:00`), reminder time (`18:00`), time zone (`Europe/London`), and consent timestamps (`ageConfirmedAt`, `aiConsentGivenAt`).
+   - Define auth adapter tables (`VerificationToken`, `Session`, `Account`).
+
+3. **Passwordless Magic Link Engine**
+   - Create the email dispatch endpoint with single-use cryptographically secure tokens.
+   - Implement client and server 60-second resend rate-limiting.
+   - Build token verification logic issuing HTTP-only session cookies on success.
+
+4. **Google OAuth Secondary Path**
+   - Configure Google OAuth provider.
+   - Map profile callback to extract **only** the verified email, discarding names, avatars, and extraneous profile claims to preserve NFR-06 compliance.
+
+5. **Sign-up & Consent UI Gates**
+   - Build sign-in/sign-up page featuring the plain-English privacy notice.
+   - Embed mandatory `"I am 18 or over"` and AI provider consent checkboxes with neutral, blocking validation messages.
+   - Provide email magic link form with 60-second resend timer, spam tips, and Google sign-in fallback button.
+
+6. **Session Middleware & Tenant Isolation (NFR-04)**
+   - Add Next.js server middleware to validate active sessions and extract `studentId`.
+   - Ensure all data access layer operations filter strictly by `studentId`.
+
+7. **Onboarding Flow & Default Settings**
+   - Check exam count upon initial authentication: redirect students with 0 exams to `"Add an Exam"` (FR-01, FR-02); redirect existing students to `"Today's Plan"` (FR-06).
+
+8. **Account Deletion Integration (FR-14)**
+   - Integrate single-action account deletion: purge all student data in one database transaction, invalidate active sessions, and send a final confirmation email.
+
+9. **Verification & Multi-Account Testing**
+   - Test data isolation with two accounts to confirm zero cross-tenant data leakage (NFR-04).
+   - Test token expiry, 60s resend timer, spam guidance, and under-18 / consent rejection gates.
+
+---
+
 ## 🛠️ Technology Stack
 
 - **Framework**: [Next.js](https://nextjs.org/) (TypeScript)
