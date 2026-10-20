@@ -93,6 +93,47 @@ The authentication system is designed around minimal PII collection, passwordles
 
 ---
 
+## 🎨 UI Revamp Process (Step by Step)
+
+A six-phase process for revamping StudyPlanner's interface. It targets the Next.js/TypeScript application and upholds the mobile-first, WCAG 2.2 AA standard stated in the Technology Stack. Each phase is ordered so that nothing later invalidates work already done; do not skip the audit or the foundation.
+
+### Phase 1 — Audit (no code changes)
+
+1. Screenshot every screen: sign-up and consent, exams, notes upload, topic edit, today's plan, quiz, due cards, readiness, weekly note, settings, and exam result entry — each at 375 px, 768 px, and 1440 px. This is the before-baseline and the later regression check.
+2. Catalog inconsistencies: inline style attributes, duplicated component styles, missing hover/focus/empty/loading/error states, and absent breakpoints.
+3. Choose two or three reference apps for the target look, and write a one-paragraph statement: *"same content, but ___."*
+
+### Phase 2 — Design Foundation
+
+4. Decide and record whether the prototype's *"no CSS variables"* rule carries into the Next.js app. Log the answer in `.agent/rules/decisions.md`. Tokens are the single largest lever for consistency; lifting the rule is the recommended path.
+5. Define the token set before any component code: colour palette (background, surface, border, accent, success, danger), type scale, 4/8 px spacing scale, three radii, and two or three elevation shadows.
+6. Freeze the token set. Later phases consume tokens; they do not redefine them.
+
+### Phase 3 — Component Inventory
+
+7. List one canonical style for each shared component: navigation item, card, button, badge, input, modal, timer, countdown, and status chip.
+8. Define the states every component must ship with: default, hover, focus-visible, disabled, empty, loading, and error.
+9. Remove all inline style declarations; replace them with component classes or token references so nothing bypasses the system.
+
+### Phase 4 — Responsive & Accessibility
+
+10. Add breakpoints (suggest 640 px, 1024 px, 1280 px): collapse the sidebar into a drawer, reflow the dashboard grid, and let the header wrap without truncating the countdown.
+11. Add keyboard focus rings to every interactive element, verify colour contrast meets WCAG 2.2 AA on the dark background, and confirm full keyboard navigation of each screen.
+
+### Phase 5 — Screen-by-Screen Migration
+
+12. Migrate one screen per commit in PRD screen order, starting with today's plan — the screen every other feature feeds.
+13. Keep class names and component prop names stable. Where a rename is needed, rename and update every reference in the same commit; never split across commits.
+14. Commit each migrated screen separately so any screen can be reverted without undoing the others.
+
+### Phase 6 — Verification
+
+15. Re-screenshot every screen at the three baseline widths and diff against the Phase 1 baselines.
+16. Manually exercise the focus timer, streak badge, and exam countdown — the pieces most coupled to JavaScript state.
+17. Run the lint, build, and test commands recorded in `.agent/rules/testing-and-done.md`. Those rows are currently OPEN; fill them in before Phase 1 so *"done"* is checkable.
+
+---
+
 ## 🛠️ Technology Stack
 
 - **Framework**: [Next.js](https://nextjs.org/) (TypeScript)
